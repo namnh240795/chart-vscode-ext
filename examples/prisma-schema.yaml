@@ -1,0 +1,112 @@
+# Prisma-like Schema Definition in YAML
+# This format defines database models that can be converted to Prisma AST
+
+schema:
+  name: "my-app"
+  version: "1.0.0"
+
+# Data source configuration
+datasource:
+  provider: "postgresql"
+  url: "env('DATABASE_URL')"
+
+# Generator configuration
+generator:
+  provider: "prisma-client-js"
+
+# Model definitions
+models:
+  - name: User
+    documentation: "User account information"
+    fields:
+      - name: id
+        type: Int
+        isId: true
+        isAutoIncrement: true
+        documentation: "Unique identifier"
+
+      - name: email
+        type: String
+        isUnique: true
+        documentation: "User email address"
+
+      - name: name
+        type: String?
+        documentation: "Optional user name"
+
+      - name: role
+        type: Role
+        default: "USER"
+        documentation: "User role"
+
+      - name: posts
+        type: Post[]
+        relation: "Post.author"
+
+      - name: createdAt
+        type: DateTime
+        default: "now()"
+
+      - name: updatedAt
+        type: DateTime
+        updatedAt: true
+
+  - name: Post
+    documentation: "Blog post or article"
+    fields:
+      - name: id
+        type: String
+        isId: true
+        default: "uuid()"
+
+      - name: title
+        type: String
+        documentation: "Post title"
+
+      - name: content
+        type: String?
+        documentation: "Post content (optional)"
+
+      - name: published
+        type: Boolean
+        default: false
+
+      - name: author
+        type: User
+        relation: "User.posts"
+        fields: [authorId]
+        references: [id]
+
+      - name: authorId
+        type: Int
+
+      - name: categories
+        type: Category[]
+        relation: "Post.categories"
+
+      - name: createdAt
+        type: DateTime
+        default: "now()"
+
+  - name: Category
+    documentation: "Post categories"
+    fields:
+      - name: id
+        type: Int
+        isId: true
+        isAutoIncrement: true
+
+      - name: name
+        type: String
+        isUnique: true
+
+      - name: posts
+        type: Post[]
+        relation: "Post.categories"
+
+  - name: Role
+    isEnum: true
+    values:
+      - name: USER
+      - name: ADMIN
+      - name: MODERATOR

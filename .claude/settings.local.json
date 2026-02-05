@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm init:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm run compile:*)",
+      "Bash(tree:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm run compile:webview:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}
