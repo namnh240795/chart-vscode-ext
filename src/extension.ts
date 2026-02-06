@@ -103,10 +103,11 @@ export function activate(context: vscode.ExtensionContext) {
 
       const saveUri = await vscode.window.showSaveDialog({
         filters: {
+          'Cryml Files': ['cryml'],
           'YAML Files': ['yml', 'yaml']
         },
-        defaultUri: vscode.Uri.file('schema.yml'),
-        saveLabel: 'Save as YAML'
+        defaultUri: vscode.Uri.file('schema.cryml'),
+        saveLabel: 'Save as Cryml'
       });
 
       if (saveUri) {
@@ -131,8 +132,9 @@ export function activate(context: vscode.ExtensionContext) {
       } else {
         const options: vscode.OpenDialogOptions = {
           canSelectMany: false,
-          openLabel: 'Select YAML Schema',
+          openLabel: 'Select YAML/Cryml Schema',
           filters: {
+            'Cryml Files': ['cryml'],
             'YAML Files': ['yml', 'yaml']
           }
         };
@@ -146,9 +148,10 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       if (yamlContent) {
-        // Create a unique label based on the file name
+        // Create a unique label based on the file name and extension
         const fileName = actualFilePath ? actualFilePath.split('/').pop() || actualFilePath.split('\\').pop() : 'Schema';
-        const label = `YAML: ${fileName}`;
+        const isCryml = actualFilePath?.endsWith('.cryml');
+        const label = `${isCryml ? 'Cryml' : 'YAML'}: ${fileName}`;
 
         FlowChartPanel.createOrShow(
           context.extensionUri,
@@ -158,7 +161,83 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(openCommand, openPrismaCommand, saveYamlCommand, openYamlCommand);
+  // Register command to validate .cryml file
+  const validateCrymlCommand = vscode.commands.registerCommand(
+    'chart-vscode-ext.validateCryml',
+    async () => {
+      // Get active editor
+      const activeEditor = vscode.window.activeTextEditor;
+      if (!activeEditor) {
+        vscode.window.showWarningMessage('No active file to validate');
+        return;
+      }
+
+      const content = activeEditor.document.getText();
+
+      if (!content || content.trim().length === 0) {
+        vscode.window.showWarningMessage('No content to validate');
+        return;
+      }
+
+      // Simple validation - check for required fields
+      try {
+        const yaml = require('yaml');
+        const parsed = yaml.parse(content);
+
+        if (!parsed || typeof parsed !== 'object') {
+          vscode.window.showErrorMessage('Invalid YAML: Empty or not an object');
+          return;
+        }
+
+        const diagramType = parsed.diagram_type || 'erd';
+
+        // Check for required metadata
+        if (!parsed.metadata) {
+          vscode.window.showErrorMessage('Missing required field: metadata');
+          return;
+        }
+
+        if (!parsed.metadata.name) {
+          vscode.window.showErrorMessage('Missing required field: metadata.name');
+          return;
+        }
+
+        // Check for required fields based on diagram type
+        if (diagramType === 'erd' && !parsed.models) {
+          vscode.window.showErrorMessage('Missing required field for ERD: models');
+          return;
+        }
+
+        if (diagramType === 'sequence') {
+          if (!parsed.participants) {
+            vscode.window.showErrorMessage('Missing required field for Sequence: participants');
+            return;
+          }
+          if (!parsed.messages) {
+            vscode.window.showErrorMessage('Missing required field for Sequence: messages');
+            return;
+          }
+        }
+
+        if (diagramType === 'flow') {
+          if (!parsed.nodes) {
+            vscode.window.showErrorMessage('Missing required field for Flow: nodes');
+            return;
+          }
+          if (!parsed.edges) {
+            vscode.window.showErrorMessage('Missing required field for Flow: edges');
+            return;
+          }
+        }
+
+        vscode.window.showInformationMessage(`✓ Valid ${diagramType.toUpperCase()} diagram`);
+      } catch (error) {
+        vscode.window.showErrorMessage(`YAML parsing error: ${error}`);
+      }
+    }
+  );
+
+  context.subscriptions.push(openCommand, openPrismaCommand, saveYamlCommand, openYamlCommand, validateCrymlCommand);
 }
 
 export function deactivate() {}
@@ -188,25 +267,12 @@ class FlowChartTreeProvider implements vscode.TreeDataProvider<ChartItem> {
   private getProjects(): ChartItem[] {
     return [
       new ChartItem(
-        'My Project',
+        'Examples',
         vscode.TreeItemCollapsibleState.Collapsed,
-        'project',
-        {
-          command: 'chart-vscode-ext.openFlow',
-          title: 'Open Project',
-          arguments: [new ChartItemData('project', 'My Project', {})]
-        }
+        'examples',
+        undefined,
+        this._extensionUri
       ),
-      new ChartItem(
-        'Sample Project',
-        vscode.TreeItemCollapsibleState.Collapsed,
-        'project',
-        {
-          command: 'chart-vscode-ext.openFlow',
-          title: 'Open Project',
-          arguments: [new ChartItemData('project', 'Sample Project', {})]
-        }
-      )
     ];
   }
 }
@@ -216,7 +282,8 @@ class ChartItem extends vscode.TreeItem {
     public readonly label: string,
     public readonly collapsibleState: vscode.TreeItemCollapsibleState,
     private readonly itemType: string,
-    public readonly command?: vscode.Command
+    public readonly command?: vscode.Command,
+    private readonly extensionUri?: vscode.Uri
   ) {
     super(label, collapsibleState);
     this.tooltip = `${this.label}`;
@@ -228,6 +295,8 @@ class ChartItem extends vscode.TreeItem {
     switch (this.itemType) {
       case 'project':
         return new vscode.ThemeIcon('folder-library');
+      case 'examples':
+        return new vscode.ThemeIcon('folder-opened');
       case 'folder':
         return new vscode.ThemeIcon('folder');
       case 'chart':
@@ -235,6 +304,7 @@ class ChartItem extends vscode.TreeItem {
       case 'prisma':
         return new vscode.ThemeIcon('database');
       case 'yaml':
+      case 'cryml':
         return new vscode.ThemeIcon('file-code');
       default:
         return new vscode.ThemeIcon('file');
@@ -243,24 +313,41 @@ class ChartItem extends vscode.TreeItem {
 
   getChildren(): ChartItem[] {
     switch (this.itemType) {
-      case 'project':
-        return [
-          new ChartItem(
-            'Flows',
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'folder'
-          ),
-          new ChartItem(
-            'Diagrams',
-            vscode.TreeItemCollapsibleState.Collapsed,
-            'folder'
-          )
-        ];
+      case 'examples':
+        return this.getExamples();
       case 'folder':
         return this.getCharts();
       default:
         return [];
     }
+  }
+
+  private getExamples(): ChartItem[] {
+    if (this.label === 'Examples' && this.extensionUri) {
+      const examples = [
+        { label: 'Simple E-Commerce (ERD)', file: 'examples/simple-ecommerce.cryml' },
+        { label: 'Simple Approval Flow (Flow)', file: 'examples/simple-flow.cryml' },
+        { label: 'Order Processing (Flow)', file: 'examples/flow-example.cryml' },
+        { label: 'Login Flow (Sequence)', file: 'examples/simple-login-flow.cryml' },
+        { label: 'Checkout Process (Flow)', file: 'examples/simple-checkout-flow.cryml' },
+        { label: 'Quick Reference', file: 'examples/quick-reference.cryml' }
+      ];
+
+      const uri = this.extensionUri;
+      return examples.map(ex =>
+        new ChartItem(
+          ex.label,
+          vscode.TreeItemCollapsibleState.None,
+          'cryml',
+          {
+            command: 'chart-vscode-ext.openYaml',
+            title: 'Open Example',
+            arguments: [`${uri.fsPath}/${ex.file}`]
+          }
+        )
+      );
+    }
+    return [];
   }
 
   private getCharts(): ChartItem[] {
@@ -387,10 +474,11 @@ class FlowChartPanel {
             // Show save dialog
             const saveUri = await vscode.window.showSaveDialog({
               filters: {
+                'Cryml Files': ['cryml'],
                 'YAML Files': ['yml', 'yaml']
               },
-              defaultUri: vscode.Uri.file('schema.yml'),
-              saveLabel: 'Save as YAML'
+              defaultUri: vscode.Uri.file('schema.cryml'),
+              saveLabel: 'Save as Cryml'
             });
 
             console.log('Save dialog result:', saveUri?.fsPath);

@@ -1,0 +1,219 @@
+# E-Commerce Database Schema
+# Simple example showing products, orders, and customers
+
+diagram_type: "erd"
+
+metadata:
+  name: "E-Commerce Database"
+  description: "Core tables for an online store"
+
+colors:
+  default: "yellow"
+  rules:
+    - pattern: "^(Customer|User)"
+      color: "yellow"
+      group: "Users"
+    - pattern: "^(Product|Category)"
+      color: "teal"
+      group: "Catalog"
+    - pattern: "^(Order|OrderItem)"
+      color: "red"
+      group: "Orders"
+
+models:
+  Customer:
+    group: "Users"
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      email:
+        field_type: "String"
+        attributes:
+          unique: true
+
+      name:
+        field_type: "String"
+        constraints:
+          not_null: true
+
+      createdAt:
+        field_type: "DateTime"
+        attributes:
+          default_value: "now()"
+
+    indexes:
+      - index_name: "idx_customer_email"
+        columns: ["email"]
+        unique: true
+
+  Product:
+    group: "Catalog"
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      name:
+        field_type: "String"
+        constraints:
+          not_null: true
+
+      price:
+        field_type: "Decimal"
+        constraints:
+          not_null: true
+
+      stock:
+        field_type: "Int"
+        constraints:
+          not_null: true
+
+      categoryId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Category"
+            column: "id"
+        constraints:
+          not_null: true
+
+    indexes:
+      - index_name: "idx_product_category"
+        columns: ["categoryId"]
+
+  Category:
+    group: "Catalog"
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      name:
+        field_type: "String"
+        constraints:
+          not_null: true
+
+      slug:
+        field_type: "String"
+        attributes:
+          unique: true
+        constraints:
+          not_null: true
+
+  Order:
+    group: "Orders"
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      customerId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Customer"
+            column: "id"
+            on_delete: "CASCADE"
+        constraints:
+          not_null: true
+
+      status:
+        field_type: "String"
+        attributes:
+          default_value: "pending"
+        constraints:
+          not_null: true
+
+      total:
+        field_type: "Decimal"
+        constraints:
+          not_null: true
+
+      createdAt:
+        field_type: "DateTime"
+        attributes:
+          default_value: "now()"
+
+    indexes:
+      - index_name: "idx_order_customer"
+        columns: ["customerId"]
+      - index_name: "idx_order_status"
+        columns: ["status"]
+
+  OrderItem:
+    group: "Orders"
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      orderId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Order"
+            column: "id"
+            on_delete: "CASCADE"
+        constraints:
+          not_null: true
+
+      productId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Product"
+            column: "id"
+        constraints:
+          not_null: true
+
+      quantity:
+        field_type: "Int"
+        constraints:
+          not_null: true
+
+      price:
+        field_type: "Decimal"
+        constraints:
+          not_null: true
+
+    indexes:
+      - index_name: "idx_orderItem_order"
+        columns: ["orderId"]
+      - index_name: "idx_orderItem_product"
+        columns: ["productId"]
+
+enums:
+  OrderStatus:
+    values:
+      - value_name: "pending"
+        description: "Order is pending"
+      - value_name: "processing"
+        description: "Order is being processed"
+      - value_name: "shipped"
+        description: "Order has been shipped"
+      - value_name: "delivered"
+        description: "Order has been delivered"
+      - value_name: "cancelled"
+        description: "Order was cancelled"

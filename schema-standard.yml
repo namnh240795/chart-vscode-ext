@@ -1,6 +1,7 @@
 # PostgreSQL Schema YAML Standard
 # This file defines the YAML format for representing PostgreSQL database schemas
 
+diagram_type: "erd"
 version: "1.0"
 
 # Schema metadata

@@ -1,0 +1,177 @@
+# ERD Diagram Example
+# Entity Relationship Diagram showing a blog system
+
+diagram_type: "erd"
+version: "1.0"
+
+metadata:
+  name: "Blog System Database"
+  description: "Database schema for a simple blog application"
+  version: "1.0.0"
+
+colors:
+  default: "yellow"
+  rules:
+    - pattern: "^(User|Account|Session)"
+      color: "yellow"
+      group: "Authentication"
+    - pattern: "^(Post|Comment|Article|Blog)"
+      color: "red"
+      group: "Content"
+    - pattern: "^(Category|Tag)"
+      color: "teal"
+      group: "Organization"
+
+models:
+  User:
+    color: "yellow"
+    group: "Authentication"
+    table_name: "users"
+    schema_name: "public"
+    fields:
+      id:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          unique: true
+          default_value: "cuid()"
+
+      email:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        attributes:
+          unique: true
+
+      name:
+        field_type: "String"
+        db_type: "VARCHAR(100)"
+        constraints:
+          not_null: true
+
+      createdAt:
+        field_type: "DateTime"
+        db_type: "TIMESTAMP"
+        attributes:
+          default_value: "now()"
+
+    indexes:
+      - index_name: "idx_user_email"
+        columns: ["email"]
+        unique: true
+
+  Post:
+    color: "red"
+    group: "Content"
+    table_name: "posts"
+    fields:
+      id:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+
+      title:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+
+      content:
+        field_type: "String"
+        db_type: "TEXT"
+
+      published:
+        field_type: "Boolean"
+        db_type: "BOOLEAN"
+        attributes:
+          default_value: "false"
+
+      authorId:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          foreign_key:
+            table: "User"
+            column: "id"
+            on_delete: "CASCADE"
+            on_update: "CASCADE"
+
+      createdAt:
+        field_type: "DateTime"
+        db_type: "TIMESTAMP"
+        attributes:
+          default_value: "now()"
+
+    indexes:
+      - index_name: "idx_post_author"
+        columns: ["authorId"]
+      - index_name: "idx_post_published"
+        columns: ["published"]
+
+  Comment:
+    color: "red"
+    group: "Content"
+    fields:
+      id:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+
+      content:
+        field_type: "String"
+        db_type: "TEXT"
+        constraints:
+          not_null: true
+
+      postId:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          foreign_key:
+            table: "Post"
+            column: "id"
+            on_delete: "CASCADE"
+
+      authorId:
+        field_type: "String"
+        db_type: "VARCHAR(255)"
+        constraints:
+          not_null: true
+        attributes:
+          foreign_key:
+            table: "User"
+            column: "id"
+            on_delete: "CASCADE"
+
+enums:
+  UserRole:
+    values:
+      - value_name: "user"
+        description: "Regular user"
+      - value_name: "admin"
+        description: "Administrator with full access"
+      - value_name: "moderator"
+        description: "Moderator with limited admin access"
+
+  PostStatus:
+    values:
+      - value_name: "draft"
+        description: "Post is a draft"
+      - value_name: "published"
+        description: "Post is published"
+      - value_name: "archived"
+        description: "Post is archived"

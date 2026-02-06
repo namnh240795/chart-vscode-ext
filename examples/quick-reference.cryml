@@ -1,0 +1,143 @@
+# .cryml Quick Reference
+# Minimal examples for each diagram type
+
+# ============================================================
+# ERD DIAGRAM (Entity Relationship)
+# ============================================================
+
+diagram_type: "erd"
+
+metadata:
+  name: "My Database"
+  description: "Database schema description"
+
+colors:
+  default: "yellow"
+
+models:
+  User:
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      email:
+        field_type: "String"
+        attributes:
+          unique: true
+
+      profileId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Profile"
+            column: "id"
+        constraints:
+          not_null: true
+
+  Profile:
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+        constraints:
+          not_null: true
+
+      bio:
+        field_type: "String"
+
+# ============================================================
+# SEQUENCE DIAGRAM
+# ============================================================
+
+# diagram_type: "sequence"
+
+# metadata:
+#   name: "Sequence Example"
+#
+# participants:
+#   - id: "user"
+#     type: "actor"
+#     label: "User"
+#
+#   - id: "system"
+#     type: "participant"
+#     label: "System"
+#
+# messages:
+#   - id: "m1"
+#     from: "user"
+#     to: "system"
+#     label: "Request"
+#     type: "sync"
+#     sequence_order: 1
+
+# ============================================================
+# FLOW DIAGRAM
+# ============================================================
+
+# diagram_type: "flow"
+
+# metadata:
+#   name: "Flow Example"
+#
+# nodes:
+#   - id: "start"
+#     type: "start"
+#     label: "Start"
+#     position: { x: 50, y: 50 }
+#
+#   - id: "process1"
+#     type: "process"
+#     label: "Step 1"
+#     position: { x: 50, y: 150 }
+#
+#   - id: "decision1"
+#     type: "decision"
+#     label: "Continue?"
+#     position: { x: 50, y: 270 }
+#
+#   - id: "end"
+#     type: "end"
+#     label: "End"
+#     position: { x: 50, y: 390 }
+#
+# edges:
+#   - id: "e1"
+#     source: "start"
+#     target: "process1"
+#
+#   - id: "e2"
+#     source: "process1"
+#     target: "decision1"
+#
+#   - id: "e3"
+#     source: "decision1"
+#     target: "end"
+#     label: "yes"
+#     condition: "approved"
+
+# ============================================================
+# COMMON FIELD TYPES
+# ============================================================
+
+# String, Int, Decimal, Boolean, DateTime, Text, JSON
+# Use snake_case for all field names!
+
+# Foreign key example:
+# attributes:
+#   foreign_key:
+#     table: "TableName"        # Required
+#     column: "id"              # Required
+#     on_delete: "CASCADE"      # Optional
+#     on_update: "CASCADE"      # Optional
+
+# Primary key example:
+# attributes:
+#   primary_key: true
+#   default_value: "cuid()"

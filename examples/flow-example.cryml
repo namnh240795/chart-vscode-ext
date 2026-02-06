@@ -1,0 +1,113 @@
+# Flow Diagram Example
+# Order processing workflow
+
+diagram_type: "flow"
+version: "1.0"
+
+metadata:
+  name: "Order Processing Workflow"
+  description: "Flow diagram showing the order processing system"
+  version: "1.0.0"
+
+nodes:
+  - id: "start"
+    type: "start"
+    label: "Start"
+
+  - id: "validate"
+    type: "process"
+    label: "Validate Order"
+    description: "Check if order data is valid"
+
+  - id: "check_inventory"
+    type: "decision"
+    label: "In Stock?"
+    description: "Check if items are in inventory"
+
+  - id: "process_payment"
+    type: "process"
+    label: "Process Payment"
+    description: "Charge customer credit card"
+
+  - id: "check_payment"
+    type: "decision"
+    label: "Payment OK?"
+    description: "Verify payment was successful"
+
+  - id: "ship_order"
+    type: "process"
+    label: "Ship Order"
+    description: "Send items to customer"
+
+  - id: "notify_customer"
+    type: "process"
+    label: "Notify Customer"
+    description: "Send email notification"
+
+  - id: "end_success"
+    type: "end"
+    label: "Complete"
+
+  - id: "reject_order"
+    type: "process"
+    label: "Reject Order"
+    description: "Cancel and notify customer"
+
+  - id: "end_failure"
+    type: "end"
+    label: "Failed"
+
+edges:
+  - id: "edge1"
+    source: "start"
+    target: "validate"
+    label: "submit"
+
+  - id: "edge2"
+    source: "validate"
+    target: "check_inventory"
+    label: "valid"
+
+  - id: "edge3"
+    source: "check_inventory"
+    target: "process_payment"
+    label: "yes"
+    condition: "items available"
+
+  - id: "edge4"
+    source: "check_inventory"
+    target: "reject_order"
+    label: "no"
+    condition: "out of stock"
+
+  - id: "edge5"
+    source: "process_payment"
+    target: "check_payment"
+    label: "charge"
+
+  - id: "edge6"
+    source: "check_payment"
+    target: "ship_order"
+    label: "yes"
+    condition: "payment successful"
+
+  - id: "edge7"
+    source: "check_payment"
+    target: "reject_order"
+    label: "no"
+    condition: "payment failed"
+
+  - id: "edge8"
+    source: "ship_order"
+    target: "notify_customer"
+    label: "shipped"
+
+  - id: "edge9"
+    source: "notify_customer"
+    target: "end_success"
+    label: "complete"
+
+  - id: "edge10"
+    source: "reject_order"
+    target: "end_failure"
+    label: "cancelled"

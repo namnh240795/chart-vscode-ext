@@ -1,0 +1,102 @@
+# Sequence Diagram Example
+# User authentication flow in a web application
+
+diagram_type: "sequence"
+version: "1.0"
+
+metadata:
+  name: "User Authentication Flow"
+  description: "Sequence diagram showing user login and authentication process"
+  version: "1.0.0"
+
+participants:
+  - id: "user"
+    type: "actor"
+    label: "User"
+    description: "End user attempting to log in"
+
+  - id: "frontend"
+    type: "participant"
+    label: "Frontend"
+    description: "Web application frontend"
+
+  - id: "api"
+    type: "participant"
+    label: "API Server"
+    description: "Backend API server"
+
+  - id: "database"
+    type: "database"
+    label: "Database"
+    description: "User database"
+
+messages:
+  - id: "msg1"
+    from: "user"
+    to: "frontend"
+    label: "Enter credentials"
+    type: "sync"
+    sequence_order: 1
+
+  - id: "msg2"
+    from: "frontend"
+    to: "api"
+    label: "POST /login"
+    type: "sync"
+    sequence_order: 2
+    return_message: "Authentication token"
+
+  - id: "msg3"
+    from: "api"
+    to: "database"
+    label: "Query user by email"
+    type: "sync"
+    sequence_order: 3
+    return_message: "User record"
+
+  - id: "msg4"
+    from: "api"
+    to: "database"
+    label: "Verify password hash"
+    type: "sync"
+    sequence_order: 4
+
+  - id: "msg5"
+    from: "api"
+    to: "frontend"
+    label: "Return success with JWT"
+    type: "async"
+    sequence_order: 5
+
+  - id: "msg6"
+    from: "frontend"
+    to: "user"
+    label: "Redirect to dashboard"
+    type: "sync"
+    sequence_order: 6
+
+blocks:
+  - id: "block1"
+    type: "alt"
+    condition: "Invalid credentials"
+    label: "Authentication Failed"
+    messages: ["msg4"]
+    parent_block: null
+
+  - id: "block2"
+    type: "opt"
+    condition: "2FA enabled"
+    label: "Two-Factor Authentication"
+    messages: ["msg5"]
+    parent_block: null
+
+notes:
+  - id: "note1"
+    text: "JWT token expires after 24 hours"
+    attached_to: ["msg5"]
+    position: "right"
+
+  - id: "note2"
+    text: "Passwords are hashed using bcrypt"
+    attached_to: ["database"]
+    position: "left"

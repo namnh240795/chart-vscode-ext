@@ -1,0 +1,74 @@
+# Simple Flow Diagram
+# Matches the reference image structure
+
+diagram_type: "flow"
+
+metadata:
+  name: "Simple Approval Flow"
+  description: "A simple approval workflow with decision point"
+
+nodes:
+  # Start node
+  - id: "start"
+    type: "start"
+    label: "Start"
+
+  # Submit request
+  - id: "submit"
+    type: "process"
+    label: "Submit Request"
+    description: "User submits approval request"
+
+  # Review decision
+  - id: "review"
+    type: "decision"
+    label: "Approved?"
+    description: "Manager reviews request"
+
+  # If rejected
+  - id: "reject"
+    type: "process"
+    label: "Notify Rejection"
+    description: "Send rejection notification"
+
+  # If approved
+  - id: "approve"
+    type: "process"
+    label: "Process Request"
+    description: "Execute the approved request"
+
+  # End node
+  - id: "end"
+    type: "end"
+    label: "End"
+
+edges:
+  # Start to submit
+  - source: "start"
+    target: "submit"
+    label: "Begin"
+
+  # Submit to review
+  - source: "submit"
+    target: "review"
+    label: "Pending"
+
+  # Decision branches
+  - source: "review"
+    target: "reject"
+    condition: "no"
+    label: "No"
+
+  - source: "review"
+    target: "approve"
+    condition: "yes"
+    label: "Yes"
+
+  # Both paths end
+  - source: "reject"
+    target: "end"
+    label: "Done"
+
+  - source: "approve"
+    target: "end"
+    label: "Complete"

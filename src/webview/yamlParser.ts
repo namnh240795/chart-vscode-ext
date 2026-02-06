@@ -5,13 +5,14 @@ import { PrismaSchema, PrismaModel, PrismaField, PrismaEnum } from './prismaPars
 import * as yaml from 'yaml';
 
 export interface YamlSchema {
-  version: string;
+  version?: string;
+  diagram_type?: 'erd' | 'sequence' | 'flow';
   metadata: {
     name: string;
     description?: string;
     schema_version?: string;
   };
-  colors: {
+  colors?: {
     default: string;
     rules?: Array<{
       pattern: string;
@@ -19,7 +20,7 @@ export interface YamlSchema {
       group: string;
     }>;
   };
-  models: { [key: string]: YamlModel };
+  models?: { [key: string]: YamlModel };
   enums?: { [key: string]: YamlEnum };
 }
 
@@ -82,6 +83,15 @@ export function parseYamlSchema(content: string): PrismaSchema {
 
     const parsedYaml = yaml.parse(content) as YamlSchema;
     console.log('Parsed YAML:', JSON.stringify(parsedYaml, null, 2));
+
+    // Detect diagram type - default to 'erd' for backward compatibility
+    const diagramType = parsedYaml.diagram_type || 'erd';
+    console.log('Diagram type:', diagramType);
+
+    // Currently only ERD is supported for PrismaSchema return type
+    if (diagramType !== 'erd') {
+      throw new Error(`Diagram type '${diagramType}' should use parseYamlDiagram() instead. parseYamlSchema() only supports ERD diagrams.`);
+    }
 
     const schema: PrismaSchema = {
       models: [],
@@ -231,5 +241,21 @@ function applyColorRules(models: PrismaModel[], rules: Array<{ pattern: string; 
         console.error(`Invalid regex pattern: ${rule.pattern}`, e);
       }
     }
+  }
+}
+
+/**
+ * Parse any diagram type from YAML
+ * Returns the raw parsed YAML structure
+ */
+export function parseYamlDiagram(content: string): any {
+  try {
+    console.log('Parsing YAML diagram...');
+    const parsedYaml = yaml.parse(content);
+    console.log('Diagram type:', parsedYaml?.diagram_type || 'erd (default)');
+    return parsedYaml;
+  } catch (error) {
+    console.error('Failed to parse YAML diagram:', error);
+    throw new Error(`Invalid YAML diagram: ${error}`);
   }
 }

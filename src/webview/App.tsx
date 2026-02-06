@@ -9,6 +9,7 @@ import ReactFlow, {
   Connection,
   BackgroundVariant,
   NodeTypes,
+  EdgeTypes,
   NodeChange,
   EdgeChange,
   applyNodeChanges,
@@ -17,10 +18,16 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { parsePrismaSchema, convertPrismaToFlowChart, PrismaSchema } from './prismaParser';
-import { parseYamlSchema } from './yamlParser';
+import { parseYamlSchema, parseYamlDiagram } from './yamlParser';
 import { prismaToYaml } from './yamlTransformer';
 import PrismaModelNode from './components/PrismaModelNode';
 import PrismaEnumNode from './components/PrismaEnumNode';
+import { SequenceLifeline, SequenceMessage, SequenceBlock, SequenceNote } from './components/SequenceNodes';
+import { FlowNode, FlowGroup } from './components/FlowNodes';
+import { FlowEdge, FlowEdgeAnimated, DecisionEdge } from './components/FlowEdges';
+import { SequenceEdge, SyncMessageEdge, AsyncMessageEdge, ReturnMessageEdge } from './components/SequenceEdges';
+import { parseSequenceDiagram } from './parsers/sequenceParser';
+import { parseFlowDiagram } from './parsers/flowParser';
 
 // Declare the vscode API
 declare global {
@@ -223,7 +230,25 @@ const App: React.FC = () => {
       />
     ),
     prismaEnum: PrismaEnumNode,
+    sequenceLifeline: SequenceLifeline,
+    sequenceMessage: SequenceMessage,
+    sequenceBlock: SequenceBlock,
+    sequenceNote: SequenceNote,
+    flowNode: FlowNode,
+    flowGroup: FlowGroup,
   }), [selectedField, selectedModel, highlightedModels]);
+
+  // Register custom edge types
+  const edgeTypes: EdgeTypes = useMemo(() => ({
+    flow: FlowEdge,
+    flowAnimated: FlowEdgeAnimated,
+    decision: DecisionEdge,
+    sequence: SequenceEdge,
+    syncMessage: SyncMessageEdge,
+    asyncMessage: AsyncMessageEdge,
+    returnMessage: ReturnMessageEdge,
+    default: FlowEdge,
+  }), []);
 
   // Update edges with highlighting styles
   const styledEdges = useMemo(() => {
@@ -295,22 +320,52 @@ const App: React.FC = () => {
     // Handle YAML schema
     if (initialData.yamlSchema) {
       try {
-        const schema = parseYamlSchema(initialData.yamlSchema);
-        currentSchemaRef.current = schema;
-        setSchemaType('yaml');
-        setSchemaName('YAML Schema');
-        convertPrismaToFlowChart(schema).then(({ nodes: prismaNodes, edges: prismaEdges }) => {
-          setNodes(prismaNodes);
-          setEdges(prismaEdges);
-          setIsPrisma(true);
-        }).catch((error) => {
-          console.error('Error applying ELK layout:', error);
-          const { convertPrismaToFlowChartSync } = require('./prismaParser');
-          const { nodes: prismaNodes, edges: prismaEdges } = convertPrismaToFlowChartSync(schema);
-          setNodes(prismaNodes);
-          setEdges(prismaEdges);
-          setIsPrisma(true);
-        });
+        // Use parseYamlDiagram to get the raw parsed data with diagram_type
+        const parsed = parseYamlDiagram(initialData.yamlSchema);
+        const diagramType = parsed.diagram_type || 'erd';
+
+        console.log('Diagram type:', diagramType);
+
+        if (diagramType === 'erd') {
+          // Handle ERD diagrams (original YAML/Prisma format)
+          const schema = parseYamlSchema(initialData.yamlSchema);
+          currentSchemaRef.current = schema;
+          setSchemaType('yaml');
+          setSchemaName('YAML Schema (ERD)');
+          convertPrismaToFlowChart(schema).then(({ nodes: prismaNodes, edges: prismaEdges }) => {
+            setNodes(prismaNodes);
+            setEdges(prismaEdges);
+            setIsPrisma(true);
+          }).catch((error) => {
+            console.error('Error applying ELK layout:', error);
+            const { convertPrismaToFlowChartSync } = require('./prismaParser');
+            const { nodes: prismaNodes, edges: prismaEdges } = convertPrismaToFlowChartSync(schema);
+            setNodes(prismaNodes);
+            setEdges(prismaEdges);
+            setIsPrisma(true);
+          });
+        } else if (diagramType === 'sequence') {
+          // Handle sequence diagrams
+          const { nodes: sequenceNodes, edges: sequenceEdges } = parseSequenceDiagram(parsed);
+          setNodes(sequenceNodes);
+          setEdges(sequenceEdges);
+          setSchemaType('yaml');
+          setSchemaName(parsed.metadata?.name || 'Sequence Diagram');
+          setIsPrisma(false);
+        } else if (diagramType === 'flow') {
+          // Handle flow diagrams with async ELK layout
+          parseFlowDiagram(parsed).then(({ nodes: flowNodes, edges: flowEdges }) => {
+            setNodes(flowNodes);
+            setEdges(flowEdges);
+            setSchemaType('yaml');
+            setSchemaName(parsed.metadata?.name || 'Flow Diagram');
+            setIsPrisma(false);
+          }).catch((error) => {
+            console.error('Error applying ELK layout for flow diagram:', error);
+            // Fallback: show error to user
+            setSchemaName('Flow Diagram (Layout Error)');
+          });
+        }
       } catch (error) {
         console.error('Error parsing YAML schema:', error);
       }
@@ -404,58 +459,66 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="w-screen h-screen bg-[#1E1E1E]">
-      {isPrisma && (
-        <div className="absolute top-4 left-4 z-10 bg-gray-800 px-4 py-3 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-sm font-bold text-gray-200 mb-1">🔷 {schemaName || 'Schema Visualization'}</h2>
-          <p className="text-xs text-gray-400">
-            {nodes.length} items ({nodes.filter(n => n.type === 'prismaModel').length} models, {nodes.filter(n => n.type === 'prismaEnum').length} enums)
-          </p>
-          <p className="text-xs text-gray-400 mt-1">{edges.length} relations</p>
-          <div className="mt-2 pt-2 border-t border-gray-700 flex gap-2 text-xs flex-wrap items-center">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-yellow-400 rounded"></span>
-              <span className="text-gray-300">PK</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-blue-400 rounded"></span>
-              <span className="text-gray-300">FK</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-400 rounded"></span>
-              <span className="text-gray-300">Unique</span>
-            </span>
-            {schemaType === 'prisma' && (
-              <>
-                <button
-                  onClick={handleSaveAsYaml}
-                  disabled={isSaving}
-                  className={`ml-auto px-2 py-1 text-white text-xs rounded ${
-                    isSaving
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {isSaving ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
-                    </span>
-                  ) : (
-                    'Save as YAML'
-                  )}
-                </button>
-                {saveMessage && (
-                  <span className={`text-xs ${saveMessage.startsWith('✓') ? 'text-green-400' : saveMessage.startsWith('✗') ? 'text-red-400' : 'text-gray-300'}`}>
-                    {saveMessage}
-                  </span>
+    <div className="w-screen h-screen bg-[#f8fafc]">
+      {(isPrisma || schemaType === 'yaml') && (
+        <div className="absolute top-4 left-4 z-10 bg-white px-4 py-3 rounded-lg shadow-sm border border-gray-200">
+          <h2 className="text-sm font-bold text-gray-900 mb-1">🔷 {schemaName || 'Schema Visualization'}</h2>
+          {isPrisma ? (
+            <>
+              <p className="text-xs text-gray-600">
+                {nodes.length} items ({nodes.filter(n => n.type === 'prismaModel').length} models, {nodes.filter(n => n.type === 'prismaEnum').length} enums)
+              </p>
+              <p className="text-xs text-gray-600 mt-1">{edges.length} relations</p>
+              <div className="mt-2 pt-2 border-t border-gray-200 flex gap-2 text-xs flex-wrap items-center">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-yellow-400 rounded"></span>
+                  <span className="text-gray-700">PK</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-blue-400 rounded"></span>
+                  <span className="text-gray-700">FK</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-400 rounded"></span>
+                  <span className="text-gray-700">Unique</span>
+                </span>
+                {schemaType === 'prisma' && (
+                  <>
+                    <button
+                      onClick={handleSaveAsYaml}
+                      disabled={isSaving}
+                      className={`ml-auto px-2 py-1 text-white text-xs rounded ${
+                        isSaving
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {isSaving ? (
+                        <span className="flex items-center gap-1">
+                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Saving...
+                        </span>
+                      ) : (
+                        'Save as YAML'
+                      )}
+                    </button>
+                    {saveMessage && (
+                      <span className={`text-xs ${saveMessage.startsWith('✓') ? 'text-green-600' : saveMessage.startsWith('✗') ? 'text-red-600' : 'text-gray-700'}`}>
+                        {saveMessage}
+                      </span>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-gray-600">
+              {nodes.length} nodes, {edges.length} edges
+            </p>
+          )}
         </div>
       )}
       <ReactFlow
@@ -465,28 +528,19 @@ const App: React.FC = () => {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{
           animated: false,
-          style: { stroke: '#ffffff', strokeWidth: 1.5 },
+          style: { stroke: '#b1b1b7', strokeWidth: 2 },
         }}
         proOptions={{ hideAttribution: true }}
-        style={{ background: '#1E1E1E' }}
+        style={{ background: '#f8fafc' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#333" />
-        <Controls className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!text-white [&>button:hover]:!bg-gray-600" />
-        <MiniMap
-          nodeColor={(node) => {
-            const data = node.data as any;
-            if (data.color === 'yellow') return '#f59e0b';
-            if (data.color === 'red') return '#ef4444';
-            if (data.color === 'teal') return '#14b8a6';
-            return '#6b7280';
-          }}
-          maskColor="rgba(0, 0, 0, 0.6)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#cbd5e1" />
+        <Controls className="!bg-white !border-gray-200 [&>button]:!bg-gray-50 [&>button]:!border-gray-200 [&>button]:!text-gray-700 [&>button:hover]:!bg-gray-100" />
       </ReactFlow>
     </div>
   );
