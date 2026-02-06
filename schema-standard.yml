@@ -7,7 +7,7 @@ version: "1.0"
 metadata:
   name: "My Database Schema"
   description: "Database schema description"
-  version: "1.0.0"
+  schema_version: "1.0.0"
 
 # Color configuration for models
 # Available colors: yellow, red, teal
@@ -40,89 +40,89 @@ models:
     group: "Authentication"
 
     # Optional: Table name (defaults to model name)
-    tableName: "users"
+    table_name: "users"
 
     # Optional: Schema name (defaults to "public")
-    schema: "public"
+    schema_name: "public"
 
     # Fields definition
     fields:
       # Primary key field
       id:
-        type: "String"
+        field_type: "String"
         # PostgreSQL native type (optional, overrides type)
-        dbType: "VARCHAR(255)"
+        db_type: "VARCHAR(255)"
         # Field attributes
         attributes:
-          primaryKey: true
+          primary_key: true
           unique: true
-          default: "cuid()"
+          default_value: "cuid()"
         # Field-level constraints
         constraints:
-          notNull: true
+          not_null: true
 
       # Regular field with relation
       email:
-        type: "String"
-        dbType: "VARCHAR(255)"
+        field_type: "String"
+        db_type: "VARCHAR(255)"
         attributes:
           unique: true
         constraints:
-          notNull: false
+          not_null: false
 
       # Foreign key field
       accountId:
-        type: "String"
-        dbType: "VARCHAR(255)"
+        field_type: "String"
+        db_type: "VARCHAR(255)"
         attributes:
-          foreignKey:
+          foreign_key:
             table: "Account"
             column: "id"
-            onDelete: "CASCADE"
-            onUpdate: "CASCADE"
+            on_delete: "CASCADE"
+            on_update: "CASCADE"
         constraints:
-          notNull: true
+          not_null: true
 
       # Virtual relation field (not stored in database)
       posts:
-        type: "Post"
+        field_type: "Post"
         relation: "OneToMany"
         attributes:
           virtual: true
           # Back reference to the field that references this model
-          referencedBy: "userId"
+          referenced_by: "userId"
 
       # Enum field
       role:
-        type: "UserRole"
+        field_type: "UserRole"
         enum: "UserRole"
         constraints:
-          notNull: true
+          not_null: true
         attributes:
-          default: "user"
+          default_value: "user"
 
       # Field with list/array
       tags:
-        type: "String"
-        dbType: "VARCHAR(100)[]"
+        field_type: "String"
+        db_type: "VARCHAR(100)[]"
         attributes:
-          list: true
+          is_list: true
 
     # Indexes definition
     indexes:
-      - name: "idx_user_email"
+      - index_name: "idx_user_email"
         columns: ["email"]
         unique: true
 
-      - name: "idx_user_name"
+      - index_name: "idx_user_name"
         columns: ["name"]
 
-      - name: "idx_user_created_at"
+      - index_name: "idx_user_created_at"
         columns: ["createdAt"]
 
     # Unique constraints (composite)
-    uniqueConstraints:
-      - name: "unique_user_email_verified"
+    unique_constraints:
+      - constraint_name: "unique_user_email_verified"
         columns: ["email", "emailVerified"]
 
   # Example: Account model
@@ -131,64 +131,64 @@ models:
     group: "Authentication"
     fields:
       id:
-        type: "String"
-        dbType: "VARCHAR(255)"
+        field_type: "String"
+        db_type: "VARCHAR(255)"
         attributes:
-          primaryKey: true
-          default: "cuid()"
+          primary_key: true
+          default_value: "cuid()"
         constraints:
-          notNull: true
+          not_null: true
 
       userId:
-        type: "String"
-        dbType: "VARCHAR(255)"
+        field_type: "String"
+        db_type: "VARCHAR(255)"
         attributes:
-          foreignKey:
+          foreign_key:
             table: "User"
             column: "id"
-            onDelete: "CASCADE"
+            on_delete: "CASCADE"
         constraints:
-          notNull: true
+          not_null: true
 
       type:
-        type: "String"
-        dbType: "VARCHAR(50)"
+        field_type: "String"
+        db_type: "VARCHAR(50)"
         constraints:
-          notNull: true
+          not_null: true
 
       provider:
-        type: "String"
-        dbType: "VARCHAR(100)"
+        field_type: "String"
+        db_type: "VARCHAR(100)"
         constraints:
-          notNull: true
+          not_null: true
 
       providerAccountId:
-        type: "String"
-        dbType: "VARCHAR(255)"
+        field_type: "String"
+        db_type: "VARCHAR(255)"
         constraints:
-          notNull: true
+          not_null: true
 
       # OAuth tokens
       accessToken:
-        type: "String"
-        dbType: "TEXT"
+        field_type: "String"
+        db_type: "TEXT"
         attributes:
           map: "access_token"
 
       refreshToken:
-        type: "String"
-        dbType: "TEXT"
+        field_type: "String"
+        db_type: "TEXT"
         attributes:
           map: "refresh_token"
 
       expiresAt:
-        type: "Int"
-        dbType: "INTEGER"
+        field_type: "Int"
+        db_type: "INTEGER"
         attributes:
           map: "expires_at"
 
     indexes:
-      - name: "idx_account_provider"
+      - index_name: "idx_account_provider"
         columns: ["provider", "providerAccountId"]
         unique: true
 
@@ -196,17 +196,17 @@ models:
 enums:
   UserRole:
     values:
-      - name: "user"
+      - value_name: "user"
         description: "Regular user"
 
-      - name: "admin"
+      - value_name: "admin"
         description: "Administrator with full access"
 
-      - name: "moderator"
+      - value_name: "moderator"
         description: "Moderator with limited admin access"
 
   UserStatus:
     values:
-      - name: "active"
-      - name: "inactive"
-      - name: "suspended"
+      - value_name: "active"
+      - value_name: "inactive"
+      - value_name: "suspended"

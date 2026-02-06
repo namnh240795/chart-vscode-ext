@@ -24,7 +24,15 @@ code {
 }
 
 .react-flow__node.selected {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+  box-shadow: none !important;
+}
+
+.react-flow__node:focus {
+  outline: none;
+}
+
+.react-flow__node:focus-visible {
+  outline: none;
 }
 
 .react-flow__edge-path {

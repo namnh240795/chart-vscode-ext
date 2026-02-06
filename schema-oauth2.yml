@@ -1,0 +1,192 @@
+version: "1.0"
+metadata:
+  name: Prisma Schema
+  description: Generated from Prisma schema
+  schema_version: 1.0.0
+colors:
+  default: yellow
+  rules:
+    - pattern: ^User
+      color: yellow
+      group: Authentication
+models:
+  User:
+    fields:
+      id:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          default_value: auto()
+      name:
+        field_type: String
+        db_type: VARCHAR(255)
+      email:
+        field_type: String
+        db_type: VARCHAR(255)
+        attributes:
+          unique: true
+      emailVerified:
+        field_type: DateTime
+        db_type: TIMESTAMP
+      image:
+        field_type: String
+        db_type: VARCHAR(255)
+      role:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          default_value: auto()
+      createdAt:
+        field_type: DateTime
+        db_type: TIMESTAMP
+        constraints:
+          not_null: true
+        attributes:
+          default_value: auto()
+      updatedAt:
+        field_type: DateTime
+        db_type: TIMESTAMP
+        constraints:
+          not_null: true
+      accounts:
+        field_type: Account
+        constraints:
+          not_null: true
+        attributes:
+          is_list: true
+      sessions:
+        field_type: Session
+        constraints:
+          not_null: true
+        attributes:
+          is_list: true
+      verificationTokens:
+        field_type: VerificationToken
+        constraints:
+          not_null: true
+        attributes:
+          is_list: true
+    color: yellow
+    group: Authentication
+  Account:
+    fields:
+      id:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          default_value: auto()
+      userId:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      type:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      provider:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      providerAccountId:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      refresh_token:
+        field_type: String
+        db_type: VARCHAR(255)
+      access_token:
+        field_type: String
+        db_type: VARCHAR(255)
+      expires_at:
+        field_type: Int
+        db_type: INTEGER
+      token_type:
+        field_type: String
+        db_type: VARCHAR(255)
+      scope:
+        field_type: String
+        db_type: VARCHAR(255)
+      id_token:
+        field_type: String
+        db_type: VARCHAR(255)
+      session_state:
+        field_type: String
+        db_type: VARCHAR(255)
+      user:
+        field_type: User
+        constraints:
+          not_null: true
+        attributes:
+          virtual: true
+          relationType: ManyToOne
+    color: yellow
+    group: Authentication
+  Session:
+    fields:
+      id:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          primary_key: true
+          default_value: auto()
+      sessionToken:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          unique: true
+      userId:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      expires:
+        field_type: DateTime
+        db_type: TIMESTAMP
+        constraints:
+          not_null: true
+      user:
+        field_type: User
+        constraints:
+          not_null: true
+        attributes:
+          virtual: true
+          relationType: ManyToOne
+    color: yellow
+    group: Authentication
+  VerificationToken:
+    fields:
+      identifier:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+      token:
+        field_type: String
+        db_type: VARCHAR(255)
+        constraints:
+          not_null: true
+        attributes:
+          unique: true
+      expires:
+        field_type: DateTime
+        db_type: TIMESTAMP
+        constraints:
+          not_null: true
+    color: yellow
+    group: Authentication

@@ -22,9 +22,22 @@ export interface PrismaModelNodeData {
   group?: string;
 }
 
-const PrismaModelNode: React.FC<NodeProps<PrismaModelNodeData>> = ({
+interface PrismaModelNodeProps extends NodeProps<PrismaModelNodeData> {
+  selectedField?: { modelName: string; fieldName: string } | null;
+  onFieldClick?: (field: { modelName: string; fieldName: string } | null) => void;
+  selectedModel?: string | null;
+  onModelClick?: (modelName: string | null) => void;
+  highlightedModels?: Set<string>;
+}
+
+const PrismaModelNode: React.FC<PrismaModelNodeProps> = ({
   data,
   selected,
+  selectedField,
+  onFieldClick,
+  selectedModel,
+  onModelClick,
+  highlightedModels,
 }) => {
   // Color mapping for header bars
   const colorClasses = {
@@ -46,25 +59,137 @@ const PrismaModelNode: React.FC<NodeProps<PrismaModelNodeData>> = ({
     return `${step * (index + 1)}%`;
   };
 
+  // Determine if a field should be highlighted
+  const isFieldHighlighted = (field: PrismaField): boolean => {
+    if (!selectedField) return false;
+
+    // This is the selected field
+    if (selectedField.modelName === data.label && selectedField.fieldName === field.name) {
+      return true;
+    }
+
+    // Find the selected field in the schema
+    const selectedFieldData = data.fields.find(f => f.name === selectedField.fieldName);
+
+    // If the selected field is in this model
+    if (selectedField.modelName === data.label && selectedFieldData) {
+      // Highlight foreign key reference field
+      if (selectedFieldData.isForeignKey && selectedFieldData.referencesField === field.name) {
+        return true;
+      }
+      // Highlight virtual relation target
+      if (!selectedFieldData.isForeignKey && selectedFieldData.relationToModel && field.isId) {
+        return true;
+      }
+    }
+
+    // If the selected field is in another model, check if this field relates to it
+    if (selectedField.modelName !== data.label) {
+      // This field is a FK that references the selected field
+      if (field.isForeignKey &&
+          field.relationToModel === selectedField.modelName &&
+          field.referencesField === selectedField.fieldName) {
+        return true;
+      }
+      // This field is the ID referenced by the selected field's FK
+      if (field.isId && selectedFieldData?.isForeignKey &&
+          selectedFieldData.relationToModel === data.label &&
+          selectedFieldData.referencesField === field.name) {
+        return true;
+      }
+      // This field is a virtual relation to the selected model
+      if (!field.isForeignKey && field.relationToModel === selectedField.modelName && field.isId) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const handleFieldClick = (fieldName: string) => {
+    if (onFieldClick) {
+      // Toggle selection
+      if (selectedField?.modelName === data.label && selectedField?.fieldName === fieldName) {
+        onFieldClick(null);
+      } else {
+        onFieldClick({ modelName: data.label, fieldName });
+      }
+    }
+  };
+
+  const isModelHighlighted = highlightedModels?.has(data.label) || false;
+  const isModelSelected = selectedModel === data.label;
+
+  // Get the highlight color based on model color (66% opacity for outer ring, solid for fields)
+  const getHighlightColor = (opacity = 0.66) => {
+    const colorMap: { [key: string]: string } = {
+      yellow: `rgba(245, 158, 11, ${opacity})`,  // #f59e0b
+      red: `rgba(239, 68, 68, ${opacity})`,     // #ef4444
+      teal: `rgba(20, 184, 166, ${opacity})`,   // #14b8a6
+    };
+    return colorMap[data.color || 'yellow'];
+  };
+
+  const getModelColorHex = () => {
+    const colorMap: { [key: string]: string } = {
+      yellow: '#f59e0b',
+      red: '#ef4444',
+      teal: '#14b8a6',
+    };
+    return colorMap[data.color || 'yellow'];
+  };
+
   return (
-    <div style={{ padding: 0, margin: 0, background: "transparent" }} className="relative">
+    <div
+      className={`relative transition-all ${isModelHighlighted ? 'ring-4' : ''}`}
+      style={{
+        padding: 0,
+        margin: 0,
+        background: "transparent",
+        borderRadius: '8px',
+        overflow: 'hidden',
+        ...(isModelHighlighted ? { boxShadow: `0 0 0 4px ${getHighlightColor()}` } : {}),
+      }}
+    >
       {/* Header */}
       <div
-        className={`${headerClass} text-white px-4 py-3 ${selected ? "ring-2 ring-white ring-offset-2" : ""}`}
+        onClick={() => onModelClick && onModelClick(isModelSelected ? null : data.label)}
+        className={`${headerClass} text-white px-4 py-3 cursor-pointer transition-all ${
+          isModelSelected ? "bg-opacity-80 brightness-110" : ""
+        } ${
+          isModelHighlighted && !isModelSelected ? "bg-opacity-90" : ""
+        }`}
+        style={{ borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}
       >
         <div className="font-bold text-lg uppercase">{data.label}</div>
         <div className="text-xs opacity-80">Model</div>
       </div>
 
       {/* Fields */}
-      <div className="bg-gray-900">
-        {data.fields.map((field, index) => (
-          <div
-            key={field.name}
-            className={`flex items-center justify-between px-4 py-2 border-b border-gray-700 last:border-b-0 relative min-w-0 ${
-              index % 2 === 0 ? "bg-gray-900" : "bg-gray-800"
-            }`}
-          >
+      <div className="bg-gray-900" style={{ borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px' }}>
+        {data.fields.map((field, index) => {
+          const highlighted = isFieldHighlighted(field);
+          const isSelected = selectedField?.modelName === data.label && selectedField?.fieldName === field.name;
+          const modelColor = getModelColorHex();
+
+          return (
+            <div
+              key={field.name}
+              onClick={() => handleFieldClick(field.name)}
+              className={`flex items-center justify-between px-4 py-2 border-b border-gray-700 last:border-b-0 relative min-w-0 cursor-pointer transition-all overflow-visible ${
+                index % 2 === 0 ? "bg-gray-900" : "bg-gray-800"
+              }`}
+              style={{
+                ...(highlighted && !isSelected ? {
+                  boxShadow: `inset 0 0 0 1px ${modelColor}`,
+                  backgroundColor: modelColor + '33', // 20% opacity
+                } : {}),
+                ...(isSelected ? {
+                  boxShadow: `inset 0 0 0 2px ${modelColor}`,
+                  backgroundColor: modelColor + '4D', // 30% opacity
+                } : {}),
+              }}
+            >
             <div className="flex items-center gap-2 flex-shrink-0 mr-2">
               {/* Indicators */}
               <div className="flex gap-1 flex-shrink-0">
@@ -143,7 +268,8 @@ const PrismaModelNode: React.FC<NodeProps<PrismaModelNodeData>> = ({
               />
             )}
           </div>
-        ))}
+            );
+          })}
       </div>
     </div>
   );

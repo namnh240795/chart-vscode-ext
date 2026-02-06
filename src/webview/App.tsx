@@ -13,6 +13,7 @@ import ReactFlow, {
   EdgeChange,
   applyNodeChanges,
   applyEdgeChanges,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { parsePrismaSchema, convertPrismaToFlowChart, PrismaSchema } from './prismaParser';
@@ -77,11 +78,189 @@ const App: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string>('');
   const currentSchemaRef = useRef<PrismaSchema | null>(null);
 
-  // Register custom node types
+  // Track selected field for highlighting
+  const [selectedField, setSelectedField] = useState<{ modelName: string; fieldName: string } | null>(null);
+
+  // Track selected model for highlighting all related models
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+
+  // Determine which edges should be highlighted based on selected field or model
+  const highlightedEdges = useMemo(() => {
+    const highlighted = new Set<string>();
+
+    // If a model is selected, highlight all its relationships
+    if (selectedModel) {
+      const model = currentSchemaRef.current?.models.find(m => m.name === selectedModel);
+      if (!model) return highlighted;
+
+      // Find all fields in this model that have relations
+      for (const field of model.fields) {
+        if (field.relationToModel) {
+          const edgeId = `${model.name}-${field.name}-${field.relationToModel}`;
+          highlighted.add(edgeId);
+        }
+      }
+
+      // Find all fields in other models that reference this model
+      if (currentSchemaRef.current) {
+        for (const otherModel of currentSchemaRef.current.models) {
+          for (const otherField of otherModel.fields) {
+            if (otherField.relationToModel === selectedModel) {
+              const edgeId = `${otherModel.name}-${otherField.name}-${selectedModel}`;
+              highlighted.add(edgeId);
+            }
+          }
+        }
+      }
+
+      return highlighted;
+    }
+
+    // If a field is selected, highlight its specific relationship
+    if (!selectedField) return highlighted;
+
+    const { modelName, fieldName } = selectedField;
+
+    // Get the selected field data
+    const model = currentSchemaRef.current?.models.find(m => m.name === modelName);
+    if (!model) return highlighted;
+
+    const field = model.fields.find(f => f.name === fieldName);
+    if (!field) return highlighted;
+
+    // If field has a relation (FK or virtual), add the edge
+    if (field.relationToModel) {
+      // Edge ID format: `${modelName}-${fieldName}-${targetModelName}`
+      const edgeId = `${modelName}-${fieldName}-${field.relationToModel}`;
+      highlighted.add(edgeId);
+    }
+
+    // Also check if any field in other models references this field
+    if (currentSchemaRef.current) {
+      for (const otherModel of currentSchemaRef.current.models) {
+        for (const otherField of otherModel.fields) {
+          if (otherField.relationToModel === modelName) {
+            // Check if this relation points to our selected field
+            if (otherField.isForeignKey && otherField.referencesField === fieldName) {
+              // This field's FK points to our selected field
+              const edgeId = `${otherModel.name}-${otherField.name}-${modelName}`;
+              highlighted.add(edgeId);
+            }
+            // Virtual relation to an ID field
+            if (!otherField.isForeignKey && field.isId) {
+              const edgeId = `${otherModel.name}-${otherField.name}-${modelName}`;
+              highlighted.add(edgeId);
+            }
+          }
+        }
+      }
+    }
+
+    return highlighted;
+  }, [selectedField, selectedModel]);
+
+  // Determine which models should be highlighted based on selection
+  const highlightedModels = useMemo(() => {
+    const highlighted = new Set<string>();
+
+    if (selectedModel) {
+      // Add the selected model
+      highlighted.add(selectedModel);
+
+      // Add all related models
+      const model = currentSchemaRef.current?.models.find(m => m.name === selectedModel);
+      if (model && currentSchemaRef.current) {
+        for (const field of model.fields) {
+          if (field.relationToModel) {
+            highlighted.add(field.relationToModel);
+          }
+        }
+
+        // Find models that reference this model
+        for (const otherModel of currentSchemaRef.current.models) {
+          for (const otherField of otherModel.fields) {
+            if (otherField.relationToModel === selectedModel) {
+              highlighted.add(otherModel.name);
+            }
+          }
+        }
+      }
+    }
+
+    // If a field is selected, also highlight its model
+    if (selectedField) {
+      highlighted.add(selectedField.modelName);
+
+      // Also highlight the related model
+      const model = currentSchemaRef.current?.models.find(m => m.name === selectedField.modelName);
+      if (model) {
+        const field = model.fields.find(f => f.name === selectedField.fieldName);
+        if (field?.relationToModel) {
+          highlighted.add(field.relationToModel);
+        }
+      }
+    }
+
+    return highlighted;
+  }, [selectedModel, selectedField]);
+
+  // Register custom node types with props
   const nodeTypes: NodeTypes = useMemo(() => ({
-    prismaModel: PrismaModelNode,
+    prismaModel: (props) => (
+      <PrismaModelNode
+        {...props}
+        selectedField={selectedField}
+        onFieldClick={(field) => {
+          setSelectedField(field);
+          setSelectedModel(null); // Clear model selection when field is clicked
+        }}
+        selectedModel={selectedModel}
+        onModelClick={(modelName) => {
+          setSelectedModel(modelName);
+          setSelectedField(null); // Clear field selection when model is clicked
+        }}
+        highlightedModels={highlightedModels}
+      />
+    ),
     prismaEnum: PrismaEnumNode,
-  }), []);
+  }), [selectedField, selectedModel, highlightedModels]);
+
+  // Update edges with highlighting styles
+  const styledEdges = useMemo(() => {
+    return edges.map(edge => {
+      const isHighlighted = highlightedEdges.has(edge.id);
+
+      // Get the source model's color for highlighting
+      const getSourceModelColor = () => {
+        const sourceModel = currentSchemaRef.current?.models.find(m => m.name === edge.source);
+        const colorMap: { [key: string]: string } = {
+          yellow: '#f59e0b',
+          red: '#ef4444',
+          teal: '#14b8a6',
+        };
+        return colorMap[sourceModel?.color || 'yellow'];
+      };
+
+      const highlightColor = getSourceModelColor();
+
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          strokeWidth: isHighlighted ? 4 : 1.5,
+          stroke: isHighlighted ? highlightColor : (edge.style?.stroke || '#ffffff'),
+        },
+        animated: isHighlighted,
+        zIndex: isHighlighted ? 10000 : -1000,
+        markerEnd: isHighlighted ? {
+          type: MarkerType.ArrowClosed,
+          color: highlightColor,
+          width: 12,
+          height: 12,
+        } : undefined,
+      };
+    });
+  }, [edges, highlightedEdges]);
 
   // Load schema from initial data (Prisma or YAML)
   useEffect(() => {
@@ -216,7 +395,7 @@ const App: React.FC = () => {
     (changes: EdgeChange[]) => {
       setEdges((eds) => applyEdgeChanges(changes, eds));
     },
-    [setEdges]
+    []
   );
 
   const onConnect = useCallback(
@@ -281,7 +460,7 @@ const App: React.FC = () => {
       )}
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={styledEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -293,6 +472,8 @@ const App: React.FC = () => {
           animated: false,
           style: { stroke: '#ffffff', strokeWidth: 1.5 },
         }}
+        proOptions={{ hideAttribution: true }}
+        style={{ background: '#1E1E1E' }}
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#333" />
         <Controls className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!text-white [&>button:hover]:!bg-gray-600" />

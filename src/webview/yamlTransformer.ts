@@ -9,7 +9,7 @@ export interface YamlSchema {
   metadata: {
     name: string;
     description?: string;
-    version?: string;
+    schema_version?: string;
   };
   colors: {
     default: string;
@@ -26,51 +26,51 @@ export interface YamlSchema {
 export interface YamlModel {
   color?: string;
   group?: string;
-  tableName?: string;
-  schema?: string;
+  table_name?: string;
+  schema_name?: string;
   fields: { [key: string]: YamlField };
   indexes?: YamlIndex[];
-  uniqueConstraints?: YamlUniqueConstraint[];
+  unique_constraints?: YamlUniqueConstraint[];
 }
 
 export interface YamlField {
-  type: string;
-  dbType?: string;
+  field_type: string;
+  db_type?: string;
   constraints?: {
-    notNull?: boolean;
+    not_null?: boolean;
   };
   attributes?: {
-    primaryKey?: boolean;
+    primary_key?: boolean;
     unique?: boolean;
-    default?: string;
-    foreignKey?: {
+    default_value?: string;
+    foreign_key?: {
       table: string;
       column: string;
-      onDelete?: string;
-      onUpdate?: string;
+      on_delete?: string;
+      on_update?: string;
     };
     virtual?: boolean;
-    referencedBy?: string;
-    list?: boolean;
+    referenced_by?: string;
+    is_list?: boolean;
     map?: string;
-    relationName?: string;
+    relation_name?: string;
   };
 }
 
 export interface YamlIndex {
-  name: string;
+  index_name: string;
   columns: string[];
   unique?: boolean;
 }
 
 export interface YamlUniqueConstraint {
-  name: string;
+  constraint_name: string;
   columns: string[];
 }
 
 export interface YamlEnum {
   values: Array<{
-    name: string;
+    value_name: string;
     description?: string;
   }>;
 }
@@ -81,7 +81,7 @@ export function prismaToYaml(schema: PrismaSchema, metadata?: { name: string; de
     metadata: {
       name: metadata?.name || 'Database Schema',
       description: metadata?.description,
-      version: '1.0.0',
+      schema_version: '1.0.0',
     },
     colors: {
       default: 'yellow',
@@ -156,7 +156,7 @@ function convertModel(model: PrismaModel): YamlModel {
 
 function convertField(field: PrismaField, modelName: string): YamlField {
   const yamlField: YamlField = {
-    type: field.type,
+    field_type: field.type,
   };
 
   // Add database type mapping for common Prisma types
@@ -172,13 +172,13 @@ function convertField(field: PrismaField, modelName: string): YamlField {
   };
 
   if (dbTypeMap[field.type]) {
-    yamlField.dbType = dbTypeMap[field.type];
+    yamlField.db_type = dbTypeMap[field.type];
   }
 
   // Add constraints
   const constraints: any = {};
   if (field.isRequired) {
-    constraints.notNull = true;
+    constraints.not_null = true;
   }
   if (Object.keys(constraints).length > 0) {
     yamlField.constraints = constraints;
@@ -188,7 +188,7 @@ function convertField(field: PrismaField, modelName: string): YamlField {
   const attributes: any = {};
 
   if (field.isId) {
-    attributes.primaryKey = true;
+    attributes.primary_key = true;
   }
 
   if (field.isUnique) {
@@ -196,26 +196,26 @@ function convertField(field: PrismaField, modelName: string): YamlField {
   }
 
   if (field.hasDefault) {
-    attributes.default = 'auto()';
+    attributes.default_value = 'auto()';
   }
 
   if (field.isForeignKey) {
-    attributes.foreignKey = {
+    attributes.foreign_key = {
       table: field.relationToModel || '',
       column: field.referencesField || 'id',
-      onDelete: 'CASCADE',
+      on_delete: 'CASCADE',
     };
   }
 
   if (field.isList) {
-    attributes.list = true;
+    attributes.is_list = true;
   }
 
   // Virtual relation field (back-relation)
   if (field.relationToModel && !field.isForeignKey) {
     attributes.virtual = true;
     if (field.relationName) {
-      attributes.relationName = field.relationName;
+      attributes.relation_name = field.relationName;
     }
     // Try to find the back-reference field
     if (field.isList) {
@@ -235,7 +235,7 @@ function convertField(field: PrismaField, modelName: string): YamlField {
 function convertEnum(enumType: PrismaEnum): YamlEnum {
   return {
     values: enumType.values.map(v => ({
-      name: v.name,
+      value_name: v.name,
     })),
   };
 }

@@ -9,7 +9,7 @@ export interface YamlSchema {
   metadata: {
     name: string;
     description?: string;
-    version?: string;
+    schema_version?: string;
   };
   colors: {
     default: string;
@@ -26,51 +26,51 @@ export interface YamlSchema {
 export interface YamlModel {
   color?: string;
   group?: string;
-  tableName?: string;
-  schema?: string;
+  table_name?: string;
+  schema_name?: string;
   fields: { [key: string]: YamlField };
   indexes?: YamlIndex[];
-  uniqueConstraints?: YamlUniqueConstraint[];
+  unique_constraints?: YamlUniqueConstraint[];
 }
 
 export interface YamlField {
-  type: string;
-  dbType?: string;
+  field_type: string;
+  db_type?: string;
   constraints?: {
-    notNull?: boolean;
+    not_null?: boolean;
   };
   attributes?: {
-    primaryKey?: boolean;
+    primary_key?: boolean;
     unique?: boolean;
-    default?: string;
-    foreignKey?: {
+    default_value?: string;
+    foreign_key?: {
       table: string;
       column: string;
-      onDelete?: string;
-      onUpdate?: string;
+      on_delete?: string;
+      on_update?: string;
     };
     virtual?: boolean;
-    referencedBy?: string;
-    list?: boolean;
+    referenced_by?: string;
+    is_list?: boolean;
     map?: string;
-    relationName?: string;
+    relation_name?: string;
   };
 }
 
 export interface YamlIndex {
-  name: string;
+  index_name: string;
   columns: string[];
   unique?: boolean;
 }
 
 export interface YamlUniqueConstraint {
-  name: string;
+  constraint_name: string;
   columns: string[];
 }
 
 export interface YamlEnum {
   values: Array<{
-    name: string;
+    value_name: string;
     description?: string;
   }>;
 }
@@ -182,27 +182,27 @@ function convertYamlField(name: string, yamlField: YamlField): PrismaField {
 
   const field: PrismaField = {
     name,
-    type: yamlField.type,
-    isId: yamlField.attributes?.primaryKey || false,
+    type: yamlField.field_type,
+    isId: yamlField.attributes?.primary_key || false,
     isUnique: yamlField.attributes?.unique || false,
-    isRequired: yamlField.constraints?.notNull || false,
-    isList: yamlField.attributes?.list || false,
-    hasDefault: !!yamlField.attributes?.default,
-    isForeignKey: !!yamlField.attributes?.foreignKey,
+    isRequired: yamlField.constraints?.not_null || false,
+    isList: yamlField.attributes?.is_list || false,
+    hasDefault: !!yamlField.attributes?.default_value,
+    isForeignKey: !!yamlField.attributes?.foreign_key,
     isEnum: false, // Will be determined by the schema
   };
 
   // Handle foreign key
-  if (yamlField.attributes?.foreignKey) {
-    field.relationToModel = yamlField.attributes.foreignKey.table;
-    field.referencesField = yamlField.attributes.foreignKey.column;
+  if (yamlField.attributes?.foreign_key) {
+    field.relationToModel = yamlField.attributes.foreign_key.table;
+    field.referencesField = yamlField.attributes.foreign_key.column;
   }
 
   // Handle virtual relation
   if (yamlField.attributes?.virtual) {
-    field.relationToModel = yamlField.type;
-    if (yamlField.attributes.relationName) {
-      field.relationName = yamlField.attributes.relationName;
+    field.relationToModel = yamlField.field_type;
+    if (yamlField.attributes.relation_name) {
+      field.relationName = yamlField.attributes.relation_name;
     }
   }
 
@@ -213,7 +213,7 @@ function convertYamlField(name: string, yamlField: YamlField): PrismaField {
 function convertYamlEnum(name: string, yamlEnum: YamlEnum): PrismaEnum {
   return {
     name,
-    values: yamlEnum.values || [],
+    values: yamlEnum.values?.map(v => ({ name: v.value_name })) || [],
   };
 }
 

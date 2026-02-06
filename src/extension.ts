@@ -23,12 +23,14 @@ export function activate(context: vscode.ExtensionContext) {
     'chart-vscode-ext.openPrisma',
     async (filePath?: string) => {
       let schemaContent: string | undefined;
+      let actualFilePath: string | undefined;
 
       if (filePath) {
         // Load from specific file path
         const uri = vscode.Uri.file(filePath);
         const content = await vscode.workspace.fs.readFile(uri);
         schemaContent = Buffer.from(content).toString('utf8');
+        actualFilePath = filePath;
       } else {
         // Try to find schema.prisma in workspace
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -44,6 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.workspace.fs.stat(path);
                 const content = await vscode.workspace.fs.readFile(path);
                 schemaContent = Buffer.from(content).toString('utf8');
+                actualFilePath = path.fsPath;
                 break;
               } catch {
                 // File doesn't exist, continue
@@ -68,14 +71,19 @@ export function activate(context: vscode.ExtensionContext) {
           if (fileUri && fileUri[0]) {
             const content = await vscode.workspace.fs.readFile(fileUri[0]);
             schemaContent = Buffer.from(content).toString('utf8');
+            actualFilePath = fileUri[0].fsPath;
           }
         }
       }
 
       if (schemaContent) {
+        // Create a unique label based on the file name
+        const fileName = actualFilePath ? actualFilePath.split('/').pop() || actualFilePath.split('\\').pop() : 'Schema';
+        const label = `Prisma: ${fileName}`;
+
         FlowChartPanel.createOrShow(
           context.extensionUri,
-          new ChartItemData('prisma', 'Schema', { schema: schemaContent })
+          new ChartItemData('prisma', label, { schema: schemaContent, filePath: actualFilePath })
         );
       }
     }
@@ -85,6 +93,14 @@ export function activate(context: vscode.ExtensionContext) {
   const saveYamlCommand = vscode.commands.registerCommand(
     'chart-vscode-ext.saveAsYaml',
     async () => {
+      // Get the most recently active panel
+      const activePanel = Array.from(FlowChartPanel.panels.values()).pop();
+
+      if (!activePanel) {
+        vscode.window.showWarningMessage('No schema panel is currently open');
+        return;
+      }
+
       const saveUri = await vscode.window.showSaveDialog({
         filters: {
           'YAML Files': ['yml', 'yaml']
@@ -95,7 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       if (saveUri) {
         // Notify webview to send current schema data
-        FlowChartPanel.currentPanel?.sendSaveYamlRequest(saveUri.fsPath);
+        activePanel.sendSaveYamlRequest(saveUri.fsPath);
       }
     }
   );
@@ -105,11 +121,13 @@ export function activate(context: vscode.ExtensionContext) {
     'chart-vscode-ext.openYaml',
     async (filePath?: string) => {
       let yamlContent: string | undefined;
+      let actualFilePath: string | undefined;
 
       if (filePath) {
         const uri = vscode.Uri.file(filePath);
         const content = await vscode.workspace.fs.readFile(uri);
         yamlContent = Buffer.from(content).toString('utf8');
+        actualFilePath = filePath;
       } else {
         const options: vscode.OpenDialogOptions = {
           canSelectMany: false,
@@ -123,13 +141,18 @@ export function activate(context: vscode.ExtensionContext) {
         if (fileUri && fileUri[0]) {
           const content = await vscode.workspace.fs.readFile(fileUri[0]);
           yamlContent = Buffer.from(content).toString('utf8');
+          actualFilePath = fileUri[0].fsPath;
         }
       }
 
       if (yamlContent) {
+        // Create a unique label based on the file name
+        const fileName = actualFilePath ? actualFilePath.split('/').pop() || actualFilePath.split('\\').pop() : 'Schema';
+        const label = `YAML: ${fileName}`;
+
         FlowChartPanel.createOrShow(
           context.extensionUri,
-          new ChartItemData('yaml', 'YAML Schema', { schema: yamlContent })
+          new ChartItemData('yaml', label, { schema: yamlContent, filePath: actualFilePath })
         );
       }
     }
@@ -309,18 +332,24 @@ class ChartItemData {
 }
 
 class FlowChartPanel {
-  public static currentPanel: FlowChartPanel | undefined;
+  public static readonly panels = new Map<string, FlowChartPanel>();
   private readonly _panel: vscode.WebviewPanel;
   private _disposables: vscode.Disposable[] = [];
   private _item?: ChartItemData;
+  private _panelId: string;
 
   public static createOrShow(extensionUri: vscode.Uri, item?: ChartItemData) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
-    if (FlowChartPanel.currentPanel) {
-      FlowChartPanel.currentPanel._panel.reveal(column);
+    // Generate a unique ID for this panel based on the item
+    const panelId = item ? `${item.type}-${item.label}` : `default-${Date.now()}`;
+
+    // Check if a panel for this schema already exists
+    if (FlowChartPanel.panels.has(panelId)) {
+      const existingPanel = FlowChartPanel.panels.get(panelId);
+      existingPanel?._panel.reveal(column);
       return;
     }
 
@@ -335,12 +364,14 @@ class FlowChartPanel {
       }
     );
 
-    FlowChartPanel.currentPanel = new FlowChartPanel(panel, extensionUri, item);
+    const flowChartPanel = new FlowChartPanel(panel, extensionUri, item, panelId);
+    FlowChartPanel.panels.set(panelId, flowChartPanel);
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, item?: ChartItemData) {
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, item?: ChartItemData, panelId?: string) {
     this._panel = panel;
     this._item = item;
+    this._panelId = panelId || `default-${Date.now()}`;
 
     this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, extensionUri, item);
 
@@ -454,7 +485,7 @@ class FlowChartPanel {
   }
 
   public dispose() {
-    FlowChartPanel.currentPanel = undefined;
+    FlowChartPanel.panels.delete(this._panelId);
     this._panel.dispose();
     while (this._disposables.length) {
       const disposable = this._disposables.pop();
