@@ -11,6 +11,7 @@ export interface PrismaField {
   hasDefault: boolean;
   isForeignKey: boolean;
   relationToModel?: string;
+  referencesField?: string;  // Which field this FK references (e.g., "id")
   isEnum: boolean;
 }
 
@@ -77,11 +78,6 @@ const PrismaModelNode: React.FC<NodeProps<PrismaModelNodeData>> = ({
                     FK
                   </span>
                 )}
-                {field.relationToModel && !field.isForeignKey && (
-                  <span className="text-xs font-bold text-indigo-400 bg-indigo-400/20 px-1.5 py-0.5 rounded whitespace-nowrap">
-                    Rel
-                  </span>
-                )}
                 {field.isUnique && !field.isId && (
                   <span className="text-xs font-bold text-green-400 bg-green-400/20 px-1.5 py-0.5 rounded whitespace-nowrap">
                     U
@@ -112,32 +108,43 @@ const PrismaModelNode: React.FC<NodeProps<PrismaModelNodeData>> = ({
               </span>
             </div>
 
-            {/* Handle for relation fields */}
-            {field.relationToModel && (
+            {/* Handles for relations */}
+            {/* FK field: source handle on the right (points to referenced field) */}
+            {field.isForeignKey && field.relationToModel && (
               <Handle
                 type="source"
                 position={Position.Right}
                 id={`${field.name}-source`}
-                className="w-2 h-2 !bg-white !border-0 !rounded-full flex-shrink-0"
+                className="w-2 h-2 !bg-blue-400 !border-0 !rounded-full flex-shrink-0"
                 style={{ top: '50%', right: '-4px' }}
+                title={`References ${field.relationToModel}.${field.referencesField || 'id'}`}
               />
             )}
-            {field.isForeignKey && (
+            {/* Virtual relation field (back-relation): source handle on the right */}
+            {!field.isForeignKey && field.relationToModel && field.relationToModel !== data.label && (
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={`${field.name}-source`}
+                className="w-2 h-2 !bg-indigo-400 !border-0 !rounded-full flex-shrink-0"
+                style={{ top: '50%', right: '-4px' }}
+                title={`Relation to ${field.relationToModel}`}
+              />
+            )}
+            {/* ID field: target handle on the left (receives FK connections) */}
+            {field.isId && (
               <Handle
                 type="target"
                 position={Position.Left}
                 id={`${field.name}-target`}
-                className="w-2 h-2 !bg-blue-400 !border-0 !rounded-full flex-shrink-0"
+                className="w-2 h-2 !bg-yellow-400 !border-0 !rounded-full flex-shrink-0"
                 style={{ top: '50%', left: '-4px' }}
+                title="Primary key (receives foreign key references)"
               />
             )}
           </div>
         ))}
       </div>
-
-      {/* Default handles for backward compatibility */}
-      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-white" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-white" />
     </div>
   );
 };

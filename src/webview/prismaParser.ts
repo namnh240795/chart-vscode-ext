@@ -15,6 +15,7 @@ export interface PrismaField {
   isForeignKey: boolean;
   relationToModel?: string;
   relationName?: string;
+  referencesField?: string;  // Which field this FK references (e.g., "id")
   isEnum: boolean;
 }
 
@@ -173,6 +174,13 @@ function parseField(line: string): PrismaField | null {
         field.isForeignKey = true;
       }
 
+      // Check for references: @relation(fields: [authorId], references: [id])
+      const referencesMatch = part.match(/references:\s*\[([\w\s,]+)\]/);
+      if (referencesMatch) {
+        // Store the referenced field name (usually "id")
+        field.referencesField = referencesMatch[1].trim();
+      }
+
       // The type is the related model name
       field.relationToModel = baseType;
       continue;
@@ -315,6 +323,29 @@ export async function convertPrismaToFlowChart(schema: PrismaSchema): Promise<{
     const fieldHeight = 35;
     const height = headerHeight + (model.fields.length * fieldHeight) + 20;
 
+    // Calculate dynamic width based on field content
+    // Base width + padding
+    // Start with model name width (uppercase text with "Model" label below)
+    let maxWidth = Math.max(200, model.name.length * 14 + 40); // Model name in header
+
+    for (const field of model.fields) {
+      // Estimate width needed for each field:
+      // - Badges (PK, FK, Rel, U): ~30px each
+      // - Field name: ~8px per character
+      // - Type: ~7px per character (monospace)
+      // - Padding and spacing: ~80px
+      const badgesWidth =
+        (field.isId ? 30 : 0) +
+        (field.isForeignKey ? 30 : 0) +
+        (field.relationToModel && !field.isForeignKey ? 35 : 0) +
+        (field.isUnique && !field.isId ? 20 : 0);
+      const fieldNameWidth = field.name.length * 8;
+      const typeWidth = (field.type.length + (field.isList ? 2 : 0) + (field.isRequired ? 0 : 1)) * 7;
+      const fieldWidth = badgesWidth + fieldNameWidth + typeWidth + 80;
+
+      maxWidth = Math.max(maxWidth, fieldWidth);
+    }
+
     nodes.push({
       id: model.name,
       type: 'prismaModel',
@@ -327,9 +358,9 @@ export async function convertPrismaToFlowChart(schema: PrismaSchema): Promise<{
         group: model.group || 'Other',
       },
       style: {
-        width: 400,
+        width: maxWidth,
         height: height,
-        minWidth: 400,
+        minWidth: maxWidth,
       },
       draggable: true,
     });
@@ -339,6 +370,12 @@ export async function convertPrismaToFlowChart(schema: PrismaSchema): Promise<{
   schema.enums.forEach((enumType) => {
     const valuesHeight = enumType.values.length * 30;
     const height = 50 + valuesHeight + 20;
+
+    // Calculate dynamic width based on longest value name
+    let maxWidth = Math.max(200, enumType.name.length * 10);
+    for (const value of enumType.values) {
+      maxWidth = Math.max(maxWidth, value.name.length * 9 + 50);
+    }
 
     nodes.push({
       id: enumType.name,
@@ -352,8 +389,9 @@ export async function convertPrismaToFlowChart(schema: PrismaSchema): Promise<{
         group: enumType.group || 'Configuration',
       },
       style: {
-        width: 200,
+        width: maxWidth,
         height: height,
+        minWidth: maxWidth,
       },
       draggable: true,
     });
@@ -362,24 +400,45 @@ export async function convertPrismaToFlowChart(schema: PrismaSchema): Promise<{
   // Create edges for relations
   schema.models.forEach((model) => {
     model.fields.forEach((field) => {
-      // Check if this is a relation field
-      if (field.relationToModel && field.relationToModel !== model.name) {
+      // Check if this is a foreign key field
+      if (field.isForeignKey && field.relationToModel && field.referencesField) {
         // Find the target model
         const targetModel = schema.models.find((m) => m.name === field.relationToModel);
 
         if (targetModel) {
-          // Find the corresponding field in the target model
-          const targetField = targetModel.fields.find(f =>
-            f.relationToModel === model.name ||
-            (f.relationName && f.relationName === field.relationName)
+          // Find the referenced field (e.g., "id")
+          const targetField = targetModel.fields.find(f => f.name === field.referencesField);
+
+          edges.push({
+            id: `${model.name}-${field.name}-${targetModel.name}`,
+            source: model.name,
+            sourceHandle: `${field.name}-source`,  // From FK field
+            target: targetModel.name,
+            targetHandle: targetField ? `${targetField.name}-target` : undefined,  // To referenced field
+            type: 'smoothstep',
+            animated: false,
+            style: { stroke: '#ffffff', strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#ffffff', width: 10, height: 10 },
+          });
+        }
+      }
+      // Check if this is a virtual relation field (back-relation without FK)
+      else if (field.relationToModel && !field.isForeignKey && field.relationToModel !== model.name) {
+        // Find the target model
+        const targetModel = schema.models.find((m) => m.name === field.relationToModel);
+
+        if (targetModel) {
+          // Find the FK field in the target model that points back to us
+          const fkField = targetModel.fields.find(f =>
+            f.relationToModel === model.name && f.isForeignKey
           );
 
           edges.push({
             id: `${model.name}-${field.name}-${targetModel.name}`,
             source: model.name,
-            sourceHandle: field.isForeignKey ? `${field.name}-target` : `${field.name}-source`,
+            sourceHandle: `${field.name}-source`,  // From virtual relation field
             target: targetModel.name,
-            targetHandle: targetField ? `${targetField.name}-source` : undefined,
+            targetHandle: fkField ? `${fkField.name}-source` : undefined,  // To FK field
             type: 'smoothstep',
             animated: false,
             style: { stroke: '#ffffff', strokeWidth: 1.5 },
@@ -427,10 +486,24 @@ export function convertPrismaToFlowChartSync(schema: PrismaSchema): {
     const fieldHeight = 35;
     const height = headerHeight + (model.fields.length * fieldHeight) + 20;
 
+    // Calculate dynamic width based on field content
+    let maxWidth = 200;
+    for (const field of model.fields) {
+      const badgesWidth =
+        (field.isId ? 30 : 0) +
+        (field.isForeignKey ? 30 : 0) +
+        (field.relationToModel && !field.isForeignKey ? 35 : 0) +
+        (field.isUnique && !field.isId ? 20 : 0);
+      const fieldNameWidth = field.name.length * 8;
+      const typeWidth = (field.type.length + (field.isList ? 2 : 0) + (field.isRequired ? 0 : 1)) * 7;
+      const fieldWidth = badgesWidth + fieldNameWidth + typeWidth + 80;
+      maxWidth = Math.max(maxWidth, fieldWidth);
+    }
+
     nodes.push({
       id: model.name,
       type: 'prismaModel',
-      position: { x: col * 400 + 50, y: row * 400 + 50 },
+      position: { x: col * 650 + 50, y: row * 400 + 50 },
       data: {
         label: model.name,
         type: 'model',
@@ -439,9 +512,9 @@ export function convertPrismaToFlowChartSync(schema: PrismaSchema): {
         group: model.group || 'Other',
       },
       style: {
-        width: 400,
+        width: maxWidth,
         height: height,
-        minWidth: 400,
+        minWidth: maxWidth,
       },
       draggable: true,
     });
@@ -451,6 +524,12 @@ export function convertPrismaToFlowChartSync(schema: PrismaSchema): {
   schema.enums.forEach((enumType, index) => {
     const valuesHeight = enumType.values.length * 30;
     const height = 50 + valuesHeight + 20;
+
+    // Calculate dynamic width based on longest value name
+    let maxWidth = Math.max(200, enumType.name.length * 10);
+    for (const value of enumType.values) {
+      maxWidth = Math.max(maxWidth, value.name.length * 9 + 50);
+    }
 
     nodes.push({
       id: enumType.name,
@@ -464,8 +543,9 @@ export function convertPrismaToFlowChartSync(schema: PrismaSchema): {
         group: enumType.group || 'Configuration',
       },
       style: {
-        width: 200,
+        width: maxWidth,
         height: height,
+        minWidth: maxWidth,
       },
       draggable: true,
     });
@@ -474,24 +554,45 @@ export function convertPrismaToFlowChartSync(schema: PrismaSchema): {
   // Create edges for relations
   schema.models.forEach((model) => {
     model.fields.forEach((field) => {
-      // Check if this is a relation field
-      if (field.relationToModel && field.relationToModel !== model.name) {
+      // Check if this is a foreign key field
+      if (field.isForeignKey && field.relationToModel && field.referencesField) {
         // Find the target model
         const targetModel = schema.models.find((m) => m.name === field.relationToModel);
 
         if (targetModel) {
-          // Find the corresponding field in the target model
-          const targetField = targetModel.fields.find(f =>
-            f.relationToModel === model.name ||
-            (f.relationName && f.relationName === field.relationName)
+          // Find the referenced field (e.g., "id")
+          const targetField = targetModel.fields.find(f => f.name === field.referencesField);
+
+          edges.push({
+            id: `${model.name}-${field.name}-${targetModel.name}`,
+            source: model.name,
+            sourceHandle: `${field.name}-source`,  // From FK field
+            target: targetModel.name,
+            targetHandle: targetField ? `${targetField.name}-target` : undefined,  // To referenced field
+            type: 'smoothstep',
+            animated: false,
+            style: { stroke: '#ffffff', strokeWidth: 1.5 },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#ffffff', width: 10, height: 10 },
+          });
+        }
+      }
+      // Check if this is a virtual relation field (back-relation without FK)
+      else if (field.relationToModel && !field.isForeignKey && field.relationToModel !== model.name) {
+        // Find the target model
+        const targetModel = schema.models.find((m) => m.name === field.relationToModel);
+
+        if (targetModel) {
+          // Find the FK field in the target model that points back to us
+          const fkField = targetModel.fields.find(f =>
+            f.relationToModel === model.name && f.isForeignKey
           );
 
           edges.push({
             id: `${model.name}-${field.name}-${targetModel.name}`,
             source: model.name,
-            sourceHandle: field.isForeignKey ? `${field.name}-target` : `${field.name}-source`,
+            sourceHandle: `${field.name}-source`,  // From virtual relation field
             target: targetModel.name,
-            targetHandle: targetField ? `${targetField.name}-source` : undefined,
+            targetHandle: fkField ? `${fkField.name}-source` : undefined,  // To FK field
             type: 'smoothstep',
             animated: false,
             style: { stroke: '#ffffff', strokeWidth: 1.5 },
