@@ -1,0 +1,192 @@
+version: 1.0
+metadata:
+  name: "Prisma Schema"
+  description: "Generated from Prisma schema"
+  version: 1.0.0
+colors:
+  default: yellow
+  rules:
+    - pattern: "^User"
+      color: yellow
+      group: Authentication
+models:
+  User:
+    fields:
+      id:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      name:
+        type: String
+        dbType: "VARCHAR(255)"
+      email:
+        type: String
+        dbType: "VARCHAR(255)"
+        attributes:
+          unique: true
+      emailVerified:
+        type: DateTime
+        dbType: TIMESTAMP
+      image:
+        type: String
+        dbType: "VARCHAR(255)"
+      role:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          default: "auto()"
+      createdAt:
+        type: DateTime
+        dbType: TIMESTAMP
+        constraints:
+          notNull: true
+        attributes:
+          default: "auto()"
+      updatedAt:
+        type: DateTime
+        dbType: TIMESTAMP
+        constraints:
+          notNull: true
+      accounts:
+        type: Account
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+      sessions:
+        type: Session
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+      verificationTokens:
+        type: VerificationToken
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+    color: yellow
+    group: Authentication
+  Account:
+    fields:
+      id:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      userId:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      type:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      provider:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      providerAccountId:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      refresh_token:
+        type: String
+        dbType: "VARCHAR(255)"
+      access_token:
+        type: String
+        dbType: "VARCHAR(255)"
+      expires_at:
+        type: Int
+        dbType: INTEGER
+      token_type:
+        type: String
+        dbType: "VARCHAR(255)"
+      scope:
+        type: String
+        dbType: "VARCHAR(255)"
+      id_token:
+        type: String
+        dbType: "VARCHAR(255)"
+      session_state:
+        type: String
+        dbType: "VARCHAR(255)"
+      user:
+        type: User
+        constraints:
+          notNull: true
+        attributes:
+          virtual: true
+          relationType: ManyToOne
+    color: yellow
+    group: Authentication
+  Session:
+    fields:
+      id:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      sessionToken:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          unique: true
+      userId:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      expires:
+        type: DateTime
+        dbType: TIMESTAMP
+        constraints:
+          notNull: true
+      user:
+        type: User
+        constraints:
+          notNull: true
+        attributes:
+          virtual: true
+          relationType: ManyToOne
+    color: yellow
+    group: Authentication
+  VerificationToken:
+    fields:
+      identifier:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+      token:
+        type: String
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+        attributes:
+          unique: true
+      expires:
+        type: DateTime
+        dbType: TIMESTAMP
+        constraints:
+          notNull: true
+    color: yellow
+    group: Authentication

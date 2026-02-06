@@ -8,7 +8,9 @@
       "Bash(pnpm remove:*)",
       "Bash(pnpm run compile:webview:*)",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npm run compile:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

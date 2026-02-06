@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export function activate(context: vscode.ExtensionContext) {
   // Register the tree data provider for the sidebar
@@ -80,7 +81,61 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(openCommand, openPrismaCommand);
+  // Register command to save current schema as YAML
+  const saveYamlCommand = vscode.commands.registerCommand(
+    'chart-vscode-ext.saveAsYaml',
+    async () => {
+      const saveUri = await vscode.window.showSaveDialog({
+        filters: {
+          'YAML Files': ['yml', 'yaml']
+        },
+        defaultUri: vscode.Uri.file('schema.yml'),
+        saveLabel: 'Save as YAML'
+      });
+
+      if (saveUri) {
+        // Notify webview to send current schema data
+        FlowChartPanel.currentPanel?.sendSaveYamlRequest(saveUri.fsPath);
+      }
+    }
+  );
+
+  // Register command to open YAML schema
+  const openYamlCommand = vscode.commands.registerCommand(
+    'chart-vscode-ext.openYaml',
+    async (filePath?: string) => {
+      let yamlContent: string | undefined;
+
+      if (filePath) {
+        const uri = vscode.Uri.file(filePath);
+        const content = await vscode.workspace.fs.readFile(uri);
+        yamlContent = Buffer.from(content).toString('utf8');
+      } else {
+        const options: vscode.OpenDialogOptions = {
+          canSelectMany: false,
+          openLabel: 'Select YAML Schema',
+          filters: {
+            'YAML Files': ['yml', 'yaml']
+          }
+        };
+
+        const fileUri = await vscode.window.showOpenDialog(options);
+        if (fileUri && fileUri[0]) {
+          const content = await vscode.workspace.fs.readFile(fileUri[0]);
+          yamlContent = Buffer.from(content).toString('utf8');
+        }
+      }
+
+      if (yamlContent) {
+        FlowChartPanel.createOrShow(
+          context.extensionUri,
+          new ChartItemData('yaml', 'YAML Schema', { schema: yamlContent })
+        );
+      }
+    }
+  );
+
+  context.subscriptions.push(openCommand, openPrismaCommand, saveYamlCommand, openYamlCommand);
 }
 
 export function deactivate() {}
@@ -156,6 +211,8 @@ class ChartItem extends vscode.TreeItem {
         return new vscode.ThemeIcon('graph');
       case 'prisma':
         return new vscode.ThemeIcon('database');
+      case 'yaml':
+        return new vscode.ThemeIcon('file-code');
       default:
         return new vscode.ThemeIcon('file');
     }
@@ -219,6 +276,15 @@ class ChartItem extends vscode.TreeItem {
           }
         ),
         new ChartItem(
+          'Open YAML Schema',
+          vscode.TreeItemCollapsibleState.None,
+          'yaml',
+          {
+            command: 'chart-vscode-ext.openYaml',
+            title: 'Open YAML Schema',
+          }
+        ),
+        new ChartItem(
           'Architecture',
           vscode.TreeItemCollapsibleState.None,
           'chart',
@@ -279,6 +345,69 @@ class FlowChartPanel {
     this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, extensionUri, item);
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+
+    // Handle messages from webview
+    this._panel.webview.onDidReceiveMessage(
+      async (message) => {
+        console.log('Extension received message:', message.command);
+        switch (message.command) {
+          case 'requestSaveYaml':
+            console.log('Showing save dialog...');
+            // Show save dialog
+            const saveUri = await vscode.window.showSaveDialog({
+              filters: {
+                'YAML Files': ['yml', 'yaml']
+              },
+              defaultUri: vscode.Uri.file('schema.yml'),
+              saveLabel: 'Save as YAML'
+            });
+
+            console.log('Save dialog result:', saveUri?.fsPath);
+            if (saveUri) {
+              this._panel.webview.postMessage({
+                command: 'saveAsYaml',
+                filePath: saveUri.fsPath
+              });
+            } else {
+              // User cancelled
+              this._panel.webview.postMessage({ command: 'saveCancelled' });
+            }
+            break;
+          case 'saveYaml':
+            await this.saveYaml(message.data, message.filePath);
+            break;
+        }
+      },
+      null,
+      this._disposables
+    );
+  }
+
+  private async saveYaml(yamlContent: string, filePath: string) {
+    try {
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(filePath),
+        Buffer.from(yamlContent, 'utf8')
+      );
+      vscode.window.showInformationMessage(`Schema saved to ${filePath}`);
+      // Notify webview of success
+      this._panel.webview.postMessage({ command: 'saveComplete' });
+    } catch (error) {
+      const errorMsg = `Failed to save YAML: ${error}`;
+      vscode.window.showErrorMessage(errorMsg);
+      // Notify webview of error
+      this._panel.webview.postMessage({
+        command: 'saveError',
+        error: String(error)
+      });
+    }
+  }
+
+  public sendSaveYamlRequest(filePath: string) {
+    this._panel.webview.postMessage({
+      command: 'saveAsYaml',
+      filePath
+    });
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, extensionUri: vscode.Uri, item?: ChartItemData): string {
@@ -289,7 +418,8 @@ class FlowChartPanel {
     // Pass initial data to the webview
     const initialData = {
       type: item?.type || 'default',
-      prismaSchema: item?.metadata?.schema || null
+      prismaSchema: item?.type === 'prisma' ? item?.metadata?.schema : null,
+      yamlSchema: item?.type === 'yaml' ? item?.metadata?.schema : null
     };
 
     return `<!DOCTYPE html>
@@ -315,6 +445,7 @@ class FlowChartPanel {
 <body>
   <div id="root"></div>
   <script>
+    window.vscode = acquireVsCodeApi();
     window.vscodeInitialData = ${JSON.stringify(initialData)};
   </script>
   <script src="${scriptUri}"></script>

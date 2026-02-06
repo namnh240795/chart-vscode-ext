@@ -1,0 +1,212 @@
+# PostgreSQL Schema YAML Standard
+# This file defines the YAML format for representing PostgreSQL database schemas
+
+version: "1.0"
+
+# Schema metadata
+metadata:
+  name: "My Database Schema"
+  description: "Database schema description"
+  version: "1.0.0"
+
+# Color configuration for models
+# Available colors: yellow, red, teal
+colors:
+  # Default color for models without explicit color
+  default: "yellow"
+
+  # Color rules based on model name patterns
+  rules:
+    - pattern: "^(User|Account|Session|Verification|Auth)"
+      color: "yellow"
+      group: "Authentication"
+
+    - pattern: "^(Post|Comment|Article|Blog|Content|Page|Media)"
+      color: "red"
+      group: "Content"
+
+    - pattern: "^(Setting|Config|Preference|System|Permission|Role)"
+      color: "teal"
+      group: "Configuration"
+
+# Models/Tables definition
+models:
+  # Example: User model
+  User:
+    # Optional: Override default color
+    color: "yellow"
+
+    # Optional: Group name for logical grouping
+    group: "Authentication"
+
+    # Optional: Table name (defaults to model name)
+    tableName: "users"
+
+    # Optional: Schema name (defaults to "public")
+    schema: "public"
+
+    # Fields definition
+    fields:
+      # Primary key field
+      id:
+        type: "String"
+        # PostgreSQL native type (optional, overrides type)
+        dbType: "VARCHAR(255)"
+        # Field attributes
+        attributes:
+          primaryKey: true
+          unique: true
+          default: "cuid()"
+        # Field-level constraints
+        constraints:
+          notNull: true
+
+      # Regular field with relation
+      email:
+        type: "String"
+        dbType: "VARCHAR(255)"
+        attributes:
+          unique: true
+        constraints:
+          notNull: false
+
+      # Foreign key field
+      accountId:
+        type: "String"
+        dbType: "VARCHAR(255)"
+        attributes:
+          foreignKey:
+            table: "Account"
+            column: "id"
+            onDelete: "CASCADE"
+            onUpdate: "CASCADE"
+        constraints:
+          notNull: true
+
+      # Virtual relation field (not stored in database)
+      posts:
+        type: "Post"
+        relation: "OneToMany"
+        attributes:
+          virtual: true
+          # Back reference to the field that references this model
+          referencedBy: "userId"
+
+      # Enum field
+      role:
+        type: "UserRole"
+        enum: "UserRole"
+        constraints:
+          notNull: true
+        attributes:
+          default: "user"
+
+      # Field with list/array
+      tags:
+        type: "String"
+        dbType: "VARCHAR(100)[]"
+        attributes:
+          list: true
+
+    # Indexes definition
+    indexes:
+      - name: "idx_user_email"
+        columns: ["email"]
+        unique: true
+
+      - name: "idx_user_name"
+        columns: ["name"]
+
+      - name: "idx_user_created_at"
+        columns: ["createdAt"]
+
+    # Unique constraints (composite)
+    uniqueConstraints:
+      - name: "unique_user_email_verified"
+        columns: ["email", "emailVerified"]
+
+  # Example: Account model
+  Account:
+    color: "yellow"
+    group: "Authentication"
+    fields:
+      id:
+        type: "String"
+        dbType: "VARCHAR(255)"
+        attributes:
+          primaryKey: true
+          default: "cuid()"
+        constraints:
+          notNull: true
+
+      userId:
+        type: "String"
+        dbType: "VARCHAR(255)"
+        attributes:
+          foreignKey:
+            table: "User"
+            column: "id"
+            onDelete: "CASCADE"
+        constraints:
+          notNull: true
+
+      type:
+        type: "String"
+        dbType: "VARCHAR(50)"
+        constraints:
+          notNull: true
+
+      provider:
+        type: "String"
+        dbType: "VARCHAR(100)"
+        constraints:
+          notNull: true
+
+      providerAccountId:
+        type: "String"
+        dbType: "VARCHAR(255)"
+        constraints:
+          notNull: true
+
+      # OAuth tokens
+      accessToken:
+        type: "String"
+        dbType: "TEXT"
+        attributes:
+          map: "access_token"
+
+      refreshToken:
+        type: "String"
+        dbType: "TEXT"
+        attributes:
+          map: "refresh_token"
+
+      expiresAt:
+        type: "Int"
+        dbType: "INTEGER"
+        attributes:
+          map: "expires_at"
+
+    indexes:
+      - name: "idx_account_provider"
+        columns: ["provider", "providerAccountId"]
+        unique: true
+
+# Enums definition
+enums:
+  UserRole:
+    values:
+      - name: "user"
+        description: "Regular user"
+
+      - name: "admin"
+        description: "Administrator with full access"
+
+      - name: "moderator"
+        description: "Moderator with limited admin access"
+
+  UserStatus:
+    values:
+      - name: "active"
+      - name: "inactive"
+      - name: "suspended"

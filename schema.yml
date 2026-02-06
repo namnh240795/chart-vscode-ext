@@ -1,0 +1,163 @@
+version: "1.0"
+metadata:
+  name: "Prisma Schema"
+  description: "Generated from Prisma schema"
+  version: "1.0.0"
+colors:
+  default: "yellow"
+  rules:
+    - pattern: "^User"
+      color: "yellow"
+      group: "Authentication"
+models:
+  User:
+    fields:
+      id:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      name:
+        type: "String"
+      email:
+        type: "String"
+        attributes:
+          unique: true
+      emailVerified:
+        type: "DateTime"
+      image:
+        type: "String"
+      role:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          default: "auto()"
+      createdAt:
+        type: "DateTime"
+        constraints:
+          notNull: true
+        attributes:
+          default: "auto()"
+      updatedAt:
+        type: "DateTime"
+        constraints:
+          notNull: true
+      accounts:
+        type: "Account"
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+      sessions:
+        type: "Session"
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+      verificationTokens:
+        type: "VerificationToken"
+        constraints:
+          notNull: true
+        attributes:
+          list: true
+    color: "yellow"
+    group: "Authentication"
+  Account:
+    fields:
+      id:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      userId:
+        type: "String"
+        constraints:
+          notNull: true
+      type:
+        type: "String"
+        constraints:
+          notNull: true
+      provider:
+        type: "String"
+        constraints:
+          notNull: true
+      providerAccountId:
+        type: "String"
+        constraints:
+          notNull: true
+      refresh_token:
+        type: "String"
+      access_token:
+        type: "String"
+      expires_at:
+        type: "Int"
+      token_type:
+        type: "String"
+      scope:
+        type: "String"
+      id_token:
+        type: "String"
+      session_state:
+        type: "String"
+      user:
+        type: "User"
+        constraints:
+          notNull: true
+        attributes:
+          virtual: true
+    color: "yellow"
+    group: "Authentication"
+  Session:
+    fields:
+      id:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          primaryKey: true
+          default: "auto()"
+      sessionToken:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          unique: true
+      userId:
+        type: "String"
+        constraints:
+          notNull: true
+      expires:
+        type: "DateTime"
+        constraints:
+          notNull: true
+      user:
+        type: "User"
+        constraints:
+          notNull: true
+        attributes:
+          virtual: true
+    color: "yellow"
+    group: "Authentication"
+  VerificationToken:
+    fields:
+      identifier:
+        type: "String"
+        constraints:
+          notNull: true
+      token:
+        type: "String"
+        constraints:
+          notNull: true
+        attributes:
+          unique: true
+      expires:
+        type: "DateTime"
+        constraints:
+          notNull: true
+    color: "yellow"
+    group: "Authentication"

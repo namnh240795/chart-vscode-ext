@@ -12,6 +12,8 @@
   "activationEvents": [
     "onCommand:chart-vscode-ext.openFlow",
     "onCommand:chart-vscode-ext.openPrisma",
+    "onCommand:chart-vscode-ext.openYaml",
+    "onCommand:chart-vscode-ext.saveAsYaml",
     "onView:flowChartSidebar"
   ],
   "main": "./dist/extension.js",
@@ -43,6 +45,16 @@
         "command": "chart-vscode-ext.openPrisma",
         "title": "Open Prisma Schema",
         "icon": "$(database)"
+      },
+      {
+        "command": "chart-vscode-ext.openYaml",
+        "title": "Open YAML Schema",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "chart-vscode-ext.saveAsYaml",
+        "title": "Save Current Schema as YAML",
+        "icon": "$(save)"
       }
     ]
   },
@@ -78,6 +90,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
-    "elkjs": "^0.11.0"
+    "elkjs": "^0.11.0",
+    "yaml": "^2.8.2"
   }
 }
