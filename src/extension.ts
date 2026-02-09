@@ -21,58 +21,35 @@ export function activate(context: vscode.ExtensionContext) {
   // Register command to open Prisma schema visualization
   const openPrismaCommand = vscode.commands.registerCommand(
     'chart-vscode-ext.openPrisma',
-    async (filePath?: string) => {
+    async (uri?: vscode.Uri) => {
       let schemaContent: string | undefined;
       let actualFilePath: string | undefined;
 
-      if (filePath) {
-        // Load from specific file path
-        const uri = vscode.Uri.file(filePath);
-        const content = await vscode.workspace.fs.readFile(uri);
+      if (uri) {
+        // Load from specific file path (from explorer context menu)
+        const fileUri = typeof uri === 'string' ? vscode.Uri.file(uri) : uri;
+        const content = await vscode.workspace.fs.readFile(fileUri);
         schemaContent = Buffer.from(content).toString('utf8');
-        actualFilePath = filePath;
+        actualFilePath = fileUri.fsPath;
       } else {
-        // Try to find schema.prisma in workspace
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders) {
-          for (const folder of workspaceFolders) {
-            const possiblePaths = [
-              vscode.Uri.joinPath(folder.uri, 'prisma', 'schema.prisma'),
-              vscode.Uri.joinPath(folder.uri, 'schema.prisma'),
-            ];
+        // Get the first workspace folder as the default path
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
-            for (const path of possiblePaths) {
-              try {
-                await vscode.workspace.fs.stat(path);
-                const content = await vscode.workspace.fs.readFile(path);
-                schemaContent = Buffer.from(content).toString('utf8');
-                actualFilePath = path.fsPath;
-                break;
-              } catch {
-                // File doesn't exist, continue
-              }
-            }
-
-            if (schemaContent) break;
+        // Show file picker
+        const options: vscode.OpenDialogOptions = {
+          canSelectMany: false,
+          openLabel: 'Select Prisma Schema',
+          defaultUri: workspaceFolder?.uri,
+          filters: {
+            'Prisma Files': ['prisma']
           }
-        }
+        };
 
-        // If not found, show file picker
-        if (!schemaContent) {
-          const options: vscode.OpenDialogOptions = {
-            canSelectMany: false,
-            openLabel: 'Select Prisma Schema',
-            filters: {
-              'Prisma Files': ['prisma']
-            }
-          };
-
-          const fileUri = await vscode.window.showOpenDialog(options);
-          if (fileUri && fileUri[0]) {
-            const content = await vscode.workspace.fs.readFile(fileUri[0]);
-            schemaContent = Buffer.from(content).toString('utf8');
-            actualFilePath = fileUri[0].fsPath;
-          }
+        const fileUri = await vscode.window.showOpenDialog(options);
+        if (fileUri && fileUri[0]) {
+          const content = await vscode.workspace.fs.readFile(fileUri[0]);
+          schemaContent = Buffer.from(content).toString('utf8');
+          actualFilePath = fileUri[0].fsPath;
         }
       }
 
@@ -101,12 +78,16 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      // Get the first workspace folder as the default path
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const defaultUri = workspaceFolder ? vscode.Uri.joinPath(workspaceFolder.uri, 'schema.cryml') : vscode.Uri.file('schema.cryml');
+
       const saveUri = await vscode.window.showSaveDialog({
         filters: {
           'Cryml Files': ['cryml'],
           'YAML Files': ['yml', 'yaml']
         },
-        defaultUri: vscode.Uri.file('schema.cryml'),
+        defaultUri,
         saveLabel: 'Save as Cryml'
       });
 
@@ -120,19 +101,24 @@ export function activate(context: vscode.ExtensionContext) {
   // Register command to open YAML schema
   const openYamlCommand = vscode.commands.registerCommand(
     'chart-vscode-ext.openYaml',
-    async (filePath?: string) => {
+    async (uri?: vscode.Uri) => {
       let yamlContent: string | undefined;
       let actualFilePath: string | undefined;
 
-      if (filePath) {
-        const uri = vscode.Uri.file(filePath);
-        const content = await vscode.workspace.fs.readFile(uri);
+      if (uri) {
+        // Handle Uri object from explorer context menu or string from other calls
+        const fileUri = typeof uri === 'string' ? vscode.Uri.file(uri) : uri;
+        const content = await vscode.workspace.fs.readFile(fileUri);
         yamlContent = Buffer.from(content).toString('utf8');
-        actualFilePath = filePath;
+        actualFilePath = fileUri.fsPath;
       } else {
+        // Get the first workspace folder as the default path
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
         const options: vscode.OpenDialogOptions = {
           canSelectMany: false,
           openLabel: 'Select YAML/Cryml Schema',
+          defaultUri: workspaceFolder?.uri,
           filters: {
             'Cryml Files': ['cryml'],
             'YAML Files': ['yml', 'yaml']
@@ -208,28 +194,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
-        if (diagramType === 'sequence') {
-          if (!parsed.participants) {
-            vscode.window.showErrorMessage('Missing required field for Sequence: participants');
-            return;
-          }
-          if (!parsed.messages) {
-            vscode.window.showErrorMessage('Missing required field for Sequence: messages');
-            return;
-          }
-        }
-
-        if (diagramType === 'flow') {
-          if (!parsed.nodes) {
-            vscode.window.showErrorMessage('Missing required field for Flow: nodes');
-            return;
-          }
-          if (!parsed.edges) {
-            vscode.window.showErrorMessage('Missing required field for Flow: edges');
-            return;
-          }
-        }
-
         vscode.window.showInformationMessage(`✓ Valid ${diagramType.toUpperCase()} diagram`);
       } catch (error) {
         vscode.window.showErrorMessage(`YAML parsing error: ${error}`);
@@ -267,6 +231,15 @@ class FlowChartTreeProvider implements vscode.TreeDataProvider<ChartItem> {
   private getProjects(): ChartItem[] {
     return [
       new ChartItem(
+        'Open Prisma Schema',
+        vscode.TreeItemCollapsibleState.None,
+        'open-prisma',
+        {
+          command: 'chart-vscode-ext.openPrisma',
+          title: 'Open Prisma Schema',
+        }
+      ),
+      new ChartItem(
         'Examples',
         vscode.TreeItemCollapsibleState.Collapsed,
         'examples',
@@ -302,6 +275,7 @@ class ChartItem extends vscode.TreeItem {
       case 'chart':
         return new vscode.ThemeIcon('graph');
       case 'prisma':
+      case 'open-prisma':
         return new vscode.ThemeIcon('database');
       case 'yaml':
       case 'cryml':
@@ -326,10 +300,6 @@ class ChartItem extends vscode.TreeItem {
     if (this.label === 'Examples' && this.extensionUri) {
       const examples = [
         { label: 'Simple E-Commerce (ERD)', file: 'examples/simple-ecommerce.cryml' },
-        { label: 'Simple Approval Flow (Flow)', file: 'examples/simple-flow.cryml' },
-        { label: 'Order Processing (Flow)', file: 'examples/flow-example.cryml' },
-        { label: 'Login Flow (Sequence)', file: 'examples/simple-login-flow.cryml' },
-        { label: 'Checkout Process (Flow)', file: 'examples/simple-checkout-flow.cryml' },
         { label: 'Quick Reference', file: 'examples/quick-reference.cryml' }
       ];
 
@@ -471,13 +441,16 @@ class FlowChartPanel {
         switch (message.command) {
           case 'requestSaveYaml':
             console.log('Showing save dialog...');
-            // Show save dialog
+            // Show save dialog with workspace folder as default
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const defaultUri = workspaceFolder ? vscode.Uri.joinPath(workspaceFolder.uri, 'schema.cryml') : vscode.Uri.file('schema.cryml');
+
             const saveUri = await vscode.window.showSaveDialog({
               filters: {
                 'Cryml Files': ['cryml'],
                 'YAML Files': ['yml', 'yaml']
               },
-              defaultUri: vscode.Uri.file('schema.cryml'),
+              defaultUri,
               saveLabel: 'Save as Cryml'
             });
 

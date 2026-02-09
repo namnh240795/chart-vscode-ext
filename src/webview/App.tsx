@@ -22,12 +22,6 @@ import { parseYamlSchema, parseYamlDiagram } from './yamlParser';
 import { prismaToYaml } from './yamlTransformer';
 import PrismaModelNode from './components/PrismaModelNode';
 import PrismaEnumNode from './components/PrismaEnumNode';
-import { SequenceLifeline, SequenceMessage, SequenceBlock, SequenceNote } from './components/SequenceNodes';
-import { FlowNode, FlowGroup } from './components/FlowNodes';
-import { FlowEdge, FlowEdgeAnimated, DecisionEdge } from './components/FlowEdges';
-import { SequenceEdge, SyncMessageEdge, AsyncMessageEdge, ReturnMessageEdge } from './components/SequenceEdges';
-import { parseSequenceDiagram } from './parsers/sequenceParser';
-import { parseFlowDiagram } from './parsers/flowParser';
 
 // Declare the vscode API
 declare global {
@@ -230,25 +224,10 @@ const App: React.FC = () => {
       />
     ),
     prismaEnum: PrismaEnumNode,
-    sequenceLifeline: SequenceLifeline,
-    sequenceMessage: SequenceMessage,
-    sequenceBlock: SequenceBlock,
-    sequenceNote: SequenceNote,
-    flowNode: FlowNode,
-    flowGroup: FlowGroup,
   }), [selectedField, selectedModel, highlightedModels]);
 
   // Register custom edge types
-  const edgeTypes: EdgeTypes = useMemo(() => ({
-    flow: FlowEdge,
-    flowAnimated: FlowEdgeAnimated,
-    decision: DecisionEdge,
-    sequence: SequenceEdge,
-    syncMessage: SyncMessageEdge,
-    asyncMessage: AsyncMessageEdge,
-    returnMessage: ReturnMessageEdge,
-    default: FlowEdge,
-  }), []);
+  const edgeTypes: EdgeTypes = useMemo(() => ({}), []);
 
   // Update edges with highlighting styles
   const styledEdges = useMemo(() => {
@@ -343,27 +322,6 @@ const App: React.FC = () => {
             setNodes(prismaNodes);
             setEdges(prismaEdges);
             setIsPrisma(true);
-          });
-        } else if (diagramType === 'sequence') {
-          // Handle sequence diagrams
-          const { nodes: sequenceNodes, edges: sequenceEdges } = parseSequenceDiagram(parsed);
-          setNodes(sequenceNodes);
-          setEdges(sequenceEdges);
-          setSchemaType('yaml');
-          setSchemaName(parsed.metadata?.name || 'Sequence Diagram');
-          setIsPrisma(false);
-        } else if (diagramType === 'flow') {
-          // Handle flow diagrams with async ELK layout
-          parseFlowDiagram(parsed).then(({ nodes: flowNodes, edges: flowEdges }) => {
-            setNodes(flowNodes);
-            setEdges(flowEdges);
-            setSchemaType('yaml');
-            setSchemaName(parsed.metadata?.name || 'Flow Diagram');
-            setIsPrisma(false);
-          }).catch((error) => {
-            console.error('Error applying ELK layout for flow diagram:', error);
-            // Fallback: show error to user
-            setSchemaName('Flow Diagram (Layout Error)');
           });
         }
       } catch (error) {

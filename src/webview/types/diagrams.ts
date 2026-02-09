@@ -1,13 +1,13 @@
 /**
- * Unified diagram types for .cryml files
- * Supports ERD, Sequence, and Flow diagram types
+ * Diagram types for .cryml files
+ * Supports ERD diagram type
  */
 
 // ============================================================================
 // Common Types
 // ============================================================================
 
-export type DiagramType = 'erd' | 'sequence' | 'flow';
+export type DiagramType = 'erd';
 
 export interface BaseDiagram {
   diagram_type: DiagramType;
@@ -104,117 +104,10 @@ export interface ERDEnumValue {
 }
 
 // ============================================================================
-// Sequence Diagram Types
-// ============================================================================
-
-export interface SequenceDiagram extends BaseDiagram {
-  diagram_type: 'sequence';
-  metadata: DiagramMetadata;
-  participants: SequenceParticipant[];
-  messages: SequenceMessage[];
-  blocks?: SequenceBlock[];
-  notes?: SequenceNote[];
-}
-
-export interface SequenceParticipant {
-  id: string;
-  type: 'actor' | 'participant' | 'database';
-  label: string;
-  description?: string;
-}
-
-export interface SequenceMessage {
-  id: string;
-  from: string; // Participant ID
-  to: string; // Participant ID
-  label: string;
-  type: 'sync' | 'async';
-  return_message?: string;
-  sequence_order: number;
-}
-
-export interface SequenceBlock {
-  id: string;
-  type: 'alt' | 'opt' | 'loop' | 'par' | 'rect';
-  condition?: string;
-  label?: string;
-  messages: string[]; // Message IDs
-  parent_block?: string;
-}
-
-export interface SequenceNote {
-  id: string;
-  text: string;
-  attached_to?: string[]; // Participant or message IDs
-  position?: 'left' | 'right' | 'top' | 'bottom';
-}
-
-// ============================================================================
-// Flow Diagram Types
-// ============================================================================
-
-export interface FlowDiagram extends BaseDiagram {
-  diagram_type: 'flow';
-  metadata: DiagramMetadata;
-  nodes: FlowNode[];
-  edges: FlowEdge[];
-  groups?: FlowGroup[];
-}
-
-export type FlowNodeType =
-  | 'start'
-  | 'end'
-  | 'process'
-  | 'decision'
-  | 'data'
-  | 'database'
-  | 'document'
-  | 'fork'
-  | 'join';
-
-export interface FlowNode {
-  id: string;
-  type: FlowNodeType;
-  label: string;
-  description?: string;
-  position: FlowPosition;
-  data?: FlowNodeData;
-}
-
-export interface FlowPosition {
-  x: number;
-  y: number;
-}
-
-export interface FlowNodeData {
-  color?: string;
-  icon?: string;
-}
-
-export interface FlowEdge {
-  id: string;
-  source: string; // Node ID
-  target: string; // Node ID
-  label?: string;
-  condition?: string;
-  type?: string;
-}
-
-export type FlowGroupType = 'swimlane' | 'subgraph';
-
-export interface FlowGroup {
-  id: string;
-  label: string;
-  type: FlowGroupType;
-  nodes: string[]; // Node IDs
-  layout?: 'horizontal' | 'vertical';
-}
-
-// ============================================================================
 // Union Type
 // ============================================================================
 
-export type AnyDiagram = ERDDiagram | SequenceDiagram | FlowDiagram;
+export type AnyDiagram = ERDDiagram;
 
 // ============================================================================
 // Helper Type Guards
@@ -222,12 +115,4 @@ export type AnyDiagram = ERDDiagram | SequenceDiagram | FlowDiagram;
 
 export function isERDDiagram(diagram: AnyDiagram): diagram is ERDDiagram {
   return diagram.diagram_type === 'erd';
-}
-
-export function isSequenceDiagram(diagram: AnyDiagram): diagram is SequenceDiagram {
-  return diagram.diagram_type === 'sequence';
-}
-
-export function isFlowDiagram(diagram: AnyDiagram): diagram is FlowDiagram {
-  return diagram.diagram_type === 'flow';
 }

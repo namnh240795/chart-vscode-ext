@@ -15,23 +15,15 @@ import {
 } from './types';
 import {
   validateERDStructure,
-  validateSequenceStructure,
-  validateFlowStructure,
 } from './structureValidator';
 import {
   validateERDReferences,
-  validateSequenceReferences,
-  validateFlowReferences,
 } from './referenceValidator';
 import {
   validateERDLayout,
-  validateSequenceLayout,
-  validateFlowLayout,
 } from './layoutValidator';
 import {
   validateERDBestPractices,
-  validateSequenceBestPractices,
-  validateFlowBestPractices,
 } from './bestPracticesValidator';
 
 export class DiagramValidator {
@@ -108,10 +100,10 @@ export class DiagramValidator {
       return 'erd';
     }
 
-    const validTypes: DiagramType[] = ['erd', 'sequence', 'flow'];
+    const validTypes: DiagramType[] = ['erd'];
 
     if (!validTypes.includes(diagramType)) {
-      throw new Error(`Invalid diagram_type: ${diagramType}`);
+      throw new Error(`Invalid diagram_type: ${diagramType}. Only 'erd' is supported.`);
     }
 
     return diagramType as DiagramType;
@@ -129,7 +121,7 @@ export class DiagramValidator {
     // Common structure validation
     if (!parsed.diagram_type) {
       // No error - default to ERD for backward compatibility
-    } else if (!['erd', 'sequence', 'flow'].includes(parsed.diagram_type)) {
+    } else if (!['erd'].includes(parsed.diagram_type)) {
       errors.push(createError('INVALID_DIAGRAM_TYPE', 'diagram_type'));
     }
 
@@ -142,10 +134,6 @@ export class DiagramValidator {
     // Type-specific structure validation
     if (diagramType === 'erd') {
       errors.push(...validateERDStructure(parsed));
-    } else if (diagramType === 'sequence') {
-      errors.push(...validateSequenceStructure(parsed));
-    } else if (diagramType === 'flow') {
-      errors.push(...validateFlowStructure(parsed));
     }
 
     return errors;
@@ -160,10 +148,6 @@ export class DiagramValidator {
   ): Promise<ValidationError[]> {
     if (diagramType === 'erd') {
       return validateERDReferences(parsed);
-    } else if (diagramType === 'sequence') {
-      return validateSequenceReferences(parsed);
-    } else if (diagramType === 'flow') {
-      return validateFlowReferences(parsed);
     }
 
     return [];
@@ -178,10 +162,6 @@ export class DiagramValidator {
   ): Promise<ValidationError[]> {
     if (diagramType === 'erd') {
       return validateERDLayout(parsed);
-    } else if (diagramType === 'sequence') {
-      return validateSequenceLayout(parsed);
-    } else if (diagramType === 'flow') {
-      return validateFlowLayout(parsed);
     }
 
     return [];
@@ -196,10 +176,6 @@ export class DiagramValidator {
   ): Promise<ValidationWarning[]> {
     if (diagramType === 'erd') {
       return validateERDBestPractices(parsed);
-    } else if (diagramType === 'sequence') {
-      return validateSequenceBestPractices(parsed);
-    } else if (diagramType === 'flow') {
-      return validateFlowBestPractices(parsed);
     }
 
     return [];
