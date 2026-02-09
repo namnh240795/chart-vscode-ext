@@ -5,6 +5,27 @@
       "include": "#comments"
     },
     {
+      "include": "#top-level-keys"
+    },
+    {
+      "include": "#metadata-keys"
+    },
+    {
+      "include": "#diagram-type"
+    },
+    {
+      "include": "#erd-keys"
+    },
+    {
+      "include": "#field-attributes"
+    },
+    {
+      "include": "#field-types"
+    },
+    {
+      "include": "#constraints"
+    },
+    {
       "include": "#keys"
     },
     {
@@ -16,15 +37,47 @@
       "name": "comment.line.number-sign.cryml",
       "match": "#.*$"
     },
+    "top-level-keys": {
+      "name": "entity.name.function.cryml",
+      "match": "^\\s*(diagram_type|metadata|colors|models|enums)\\s*:"
+    },
+    "diagram-type": {
+      "name": "constant.language.cryml",
+      "match": "\\b(erd)\\b"
+    },
+    "metadata-keys": {
+      "name": "variable.parameter.cryml",
+      "match": "^\\s*(name|description|version)\\s*:"
+    },
+    "erd-keys": {
+      "name": "entity.name.tag.cryml",
+      "match": "^\\s*(default|group|table_name|schema_name|fields|indexes|unique_constraints|values|primary_key|unique|default_value)\\s*:"
+    },
+    "field-attributes": {
+      "name": "storage.modifier.cryml",
+      "match": "^\\s*(field_type|db_type|constraints|attributes|foreign_key|virtual|referenced_by|is_list|map|relation_name|on_delete|on_update)\\s*:"
+    },
+    "field-types": {
+      "name": "support.type.cryml",
+      "match": "\\b(String|Int|Decimal|Boolean|DateTime|Text|JSON|Cuid)\\b"
+    },
+    "constraints": {
+      "name": "keyword.control.cryml",
+      "match": "\\b(not_null)\\b"
+    },
     "keys": {
       "name": "entity.name.tag.cryml",
-      "match": "^\\s*[a-zA-Z_][a-zA-Z0-9_]*:"
+      "match": "^\\s*[a-zA-Z_][a-zA-Z0-9_]*\\s*:"
     },
     "values": {
       "patterns": [
         {
           "name": "constant.language.cryml",
-          "match": "\\b(true|false|null|yes|no)\\b"
+          "match": "\\b(true|false|null|yes|no|CASCADE|SET_NULL|RESTRICT|NO_ACTION)\\b"
+        },
+        {
+          "name": "support.type.cryml",
+          "match": "\\b(yellow|red|teal)\\b"
         },
         {
           "name": "constant.numeric.cryml",
