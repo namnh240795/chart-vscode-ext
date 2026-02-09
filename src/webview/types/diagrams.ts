@@ -1,13 +1,13 @@
 /**
  * Diagram types for .cryml files
- * Supports ERD diagram type
+ * Supports ERD and Flow diagram types
  */
 
 // ============================================================================
 // Common Types
 // ============================================================================
 
-export type DiagramType = 'erd';
+export type DiagramType = 'erd' | 'flow';
 
 export interface BaseDiagram {
   diagram_type: DiagramType;
@@ -104,10 +104,51 @@ export interface ERDEnumValue {
 }
 
 // ============================================================================
+// Flow Diagram Types
+// ============================================================================
+
+export interface FlowDiagram extends BaseDiagram {
+  diagram_type: 'flow';
+  metadata: DiagramMetadata;
+  style?: FlowStyle;
+  nodes: Record<string, FlowNode>;
+  edges: FlowEdge[];
+  groups?: Record<string, FlowGroup>;
+}
+
+export interface FlowStyle {
+  default_color?: FlowColor;
+  node_size?: 'small' | 'medium' | 'large';
+}
+
+export type FlowColor = 'blue' | 'green' | 'red' | 'orange' | 'purple' | 'gray';
+
+export interface FlowNode {
+  type: 'start' | 'end' | 'process' | 'decision' | 'note';
+  label: string;
+  description?: string;
+  group?: string;
+  position?: { x: number; y: number };
+}
+
+export interface FlowEdge {
+  from: string;
+  to: string;
+  label?: string;
+  condition?: string;
+}
+
+export interface FlowGroup {
+  color?: FlowColor;
+  collapsed?: boolean;
+  label?: string;
+}
+
+// ============================================================================
 // Union Type
 // ============================================================================
 
-export type AnyDiagram = ERDDiagram;
+export type AnyDiagram = ERDDiagram | FlowDiagram;
 
 // ============================================================================
 // Helper Type Guards
@@ -115,4 +156,8 @@ export type AnyDiagram = ERDDiagram;
 
 export function isERDDiagram(diagram: AnyDiagram): diagram is ERDDiagram {
   return diagram.diagram_type === 'erd';
+}
+
+export function isFlowDiagram(diagram: AnyDiagram): diagram is FlowDiagram {
+  return diagram.diagram_type === 'flow';
 }

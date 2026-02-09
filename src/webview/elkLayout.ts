@@ -68,9 +68,9 @@ export async function layoutFlowDiagram(nodes: Node[], edges: Edge[]): Promise<{
     switch (type) {
       case 'start':
       case 'end':
-        return { width: 120, height: 80 };
+        return { width: 120, height: 60 };
       case 'decision':
-        return { width: 100, height: 100 };
+        return { width: 120, height: 110 };
       case 'process':
         return { width: 180, height: 80 };
       case 'data':

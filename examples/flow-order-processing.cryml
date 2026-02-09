@@ -1,0 +1,166 @@
+# Order Processing Flow Diagram
+# Demonstrates flowchart with note annotations
+
+diagram_type: "flow"
+
+metadata:
+  name: "Order Processing Flow"
+  description: "Complete order processing from customer to delivery"
+  version: "1.0"
+
+style:
+  default_color: "blue"
+  node_size: "medium"
+
+nodes:
+  start:
+    type: "start"
+    label: "Order Received"
+    group: "Customer"
+    position:
+      x: 400
+      y: 50
+
+  validate_payment:
+    type: "decision"
+    label: "Payment Valid?"
+    group: "Payment"
+    position:
+      x: 400
+      y: 180
+
+  validate_payment_note:
+    type: "note"
+    label: "Payment Validation"
+    description: "Checks if:\n- Card number is valid\n- CVV matches\n- Expiration date is in future"
+    group: "Payment"
+    position:
+      x: 620
+      y: 180
+
+  process_payment:
+    type: "process"
+    label: "Charge Credit Card"
+    description: "Process via payment gateway"
+    group: "Payment"
+    position:
+      x: 400
+      y: 320
+
+  check_inventory:
+    type: "decision"
+    label: "In Stock?"
+    description: "Verify inventory availability"
+    group: "Inventory"
+    position:
+      x: 400
+      y: 460
+
+  reserve_items:
+    type: "process"
+    label: "Reserve Items"
+    description: "Set aside inventory"
+    group: "Inventory"
+    position:
+      x: 400
+      y: 600
+
+  ship_order:
+    type: "process"
+    label: "Ship Order"
+    description: "Package and ship via courier"
+    group: "Fulfillment"
+    position:
+      x: 400
+      y: 740
+
+  notify_success:
+    type: "process"
+    label: "Send Confirmation"
+    description: "Email order confirmation"
+    group: "Communication"
+    position:
+      x: 400
+      y: 880
+
+  notify_failure:
+    type: "process"
+    label: "Send Error"
+    description: "Notify customer of issue"
+    group: "Communication"
+    position:
+      x: 120
+      y: 320
+
+  end_success:
+    type: "end"
+    label: "Order Complete"
+    description: "Process finished successfully"
+    group: "Completion"
+    position:
+      x: 400
+      y: 1000
+
+  end_failure:
+    type: "end"
+    label: "Order Failed"
+    description: "Process terminated"
+    group: "Completion"
+    position:
+      x: 120
+      y: 480
+
+edges:
+  - from: "start"
+    to: "validate_payment"
+    label: "new order"
+
+  - from: "validate_payment"
+    to: "process_payment"
+    label: "valid"
+
+  - from: "validate_payment"
+    to: "notify_failure"
+    label: "invalid"
+
+  - from: "process_payment"
+    to: "check_inventory"
+    label: "authorized"
+
+  - from: "check_inventory"
+    to: "reserve_items"
+    label: "yes"
+
+  - from: "check_inventory"
+    to: "notify_failure"
+    label: "no"
+
+  - from: "reserve_items"
+    to: "ship_order"
+    label: "reserved"
+
+  - from: "ship_order"
+    to: "notify_success"
+    label: "shipped"
+
+  - from: "notify_success"
+    to: "end_success"
+    label: "confirmed"
+
+  - from: "notify_failure"
+    to: "end_failure"
+    label: "notified"
+
+groups:
+  Customer:
+    color: "green"
+  Payment:
+    color: "blue"
+  Inventory:
+    color: "orange"
+  Fulfillment:
+    color: "purple"
+  Communication:
+    color: "gray"
+  Completion:
+    color: "red"

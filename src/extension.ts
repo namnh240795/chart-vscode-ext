@@ -194,6 +194,25 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
 
+        if (diagramType === 'flow') {
+          if (!parsed.nodes) {
+            vscode.window.showErrorMessage('Missing required field for Flow: nodes');
+            return;
+          }
+          // Validate node structure
+          for (const [nodeId, node] of Object.entries(parsed.nodes)) {
+            const flowNode = node as { type?: string; label?: string };
+            if (!flowNode.type || !['start', 'end', 'process', 'decision', 'note'].includes(flowNode.type)) {
+              vscode.window.showErrorMessage(`Invalid node type for "${nodeId}": ${flowNode.type}`);
+              return;
+            }
+            if (!flowNode.label) {
+              vscode.window.showErrorMessage(`Missing label for node: "${nodeId}"`);
+              return;
+            }
+          }
+        }
+
         vscode.window.showInformationMessage(`✓ Valid ${diagramType.toUpperCase()} diagram`);
       } catch (error) {
         vscode.window.showErrorMessage(`YAML parsing error: ${error}`);
@@ -299,6 +318,7 @@ class ChartItem extends vscode.TreeItem {
   private getExamples(): ChartItem[] {
     if (this.label === 'Examples' && this.extensionUri) {
       const examples = [
+        { label: 'Order Processing Flow (Flow)', file: 'examples/flow-order-processing.cryml' },
         { label: 'Simple E-Commerce (ERD)', file: 'examples/simple-ecommerce.cryml' },
         { label: 'Quick Reference', file: 'examples/quick-reference.cryml' }
       ];
