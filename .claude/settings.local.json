@@ -10,7 +10,14 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "Bash(npm run compile:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run compile:webview:*)",
+      "Bash(rm:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run)",
+      "WebSearch",
+      "Bash(cat:*)"
     ]
   }
 }

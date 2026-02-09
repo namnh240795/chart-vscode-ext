@@ -1,0 +1,72 @@
+# .cryml Quick Reference
+# Minimal examples for ERD diagram type
+
+# ============================================================
+# ERD DIAGRAM (Entity Relationship)
+# ============================================================
+
+diagram_type: "erd"
+
+metadata:
+  name: "My Database"
+  description: "Database schema description"
+
+colors:
+  default: "yellow"
+
+models:
+  User:
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+          default_value: "cuid()"
+        constraints:
+          not_null: true
+
+      email:
+        field_type: "String"
+        attributes:
+          unique: true
+
+      profileId:
+        field_type: "String"
+        attributes:
+          foreign_key:
+            table: "Profile"
+            column: "id"
+        constraints:
+          not_null: true
+
+  Profile:
+    fields:
+      id:
+        field_type: "String"
+        attributes:
+          primary_key: true
+        constraints:
+          not_null: true
+
+      bio:
+        field_type: "String"
+
+# ============================================================
+# COMMON FIELD TYPES
+# ============================================================
+
+# String, Int, Decimal, Boolean, DateTime, Text, JSON
+# Use snake_case for all field names!
+
+# Foreign key example:
+# attributes:
+#   foreign_key:
+#     table: "TableName"        # Required
+#     column: "id"              # Required
+#     on_delete: "CASCADE"      # Optional
+#     on_update: "CASCADE"      # Optional
+
+# Primary key example:
+# attributes:
+#   primary_key: true
+#   default_value: "cuid()"

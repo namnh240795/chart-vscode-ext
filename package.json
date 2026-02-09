@@ -14,7 +14,9 @@
     "onCommand:chart-vscode-ext.openPrisma",
     "onCommand:chart-vscode-ext.openYaml",
     "onCommand:chart-vscode-ext.saveAsYaml",
-    "onView:flowChartSidebar"
+    "onCommand:chart-vscode-ext.validateCryml",
+    "onView:flowChartSidebar",
+    "onLanguage:cryml"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -43,20 +45,85 @@
       },
       {
         "command": "chart-vscode-ext.openPrisma",
-        "title": "Open Prisma Schema",
+        "title": "Open with Chorack",
         "icon": "$(database)"
       },
       {
         "command": "chart-vscode-ext.openYaml",
-        "title": "Open YAML Schema",
+        "title": "Open with Chorack",
         "icon": "$(file-code)"
       },
       {
         "command": "chart-vscode-ext.saveAsYaml",
         "title": "Save Current Schema as YAML",
         "icon": "$(save)"
+      },
+      {
+        "command": "chart-vscode-ext.validateCryml",
+        "title": "Validate .cryml File"
       }
-    ]
+    ],
+    "languages": [
+      {
+        "id": "cryml",
+        "aliases": ["Cryml", "cryml"],
+        "extensions": [".cryml"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cryml",
+        "scopeName": "source.cryml",
+        "path": "./syntaxes/cryml.tmLanguage.json"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "chart-vscode-ext.openPrisma",
+          "when": "resourceExtname == .prisma",
+          "group": "navigation"
+        },
+        {
+          "command": "chart-vscode-ext.openYaml",
+          "when": "resourceLangId == cryml",
+          "group": "navigation"
+        },
+        {
+          "command": "chart-vscode-ext.validateCryml",
+          "when": "resourceLangId == cryml",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "chart-vscode-ext.openPrisma",
+          "when": "resourceExtname == .prisma",
+          "group": "navigation"
+        },
+        {
+          "command": "chart-vscode-ext.openYaml",
+          "when": "resourceLangId == cryml",
+          "group": "navigation"
+        },
+        {
+          "command": "chart-vscode-ext.validateCryml",
+          "when": "resourceLangId == cryml",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "chart-vscode-ext.openYaml",
+          "when": "resourceLangId == cryml"
+        },
+        {
+          "command": "chart-vscode-ext.validateCryml",
+          "when": "resourceLangId == cryml"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",

@@ -9,6 +9,7 @@ import ReactFlow, {
   Connection,
   BackgroundVariant,
   NodeTypes,
+  EdgeTypes,
   NodeChange,
   EdgeChange,
   applyNodeChanges,
@@ -17,10 +18,11 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { parsePrismaSchema, convertPrismaToFlowChart, PrismaSchema } from './prismaParser';
-import { parseYamlSchema } from './yamlParser';
+import { parseYamlSchema, parseYamlDiagram } from './yamlParser';
 import { prismaToYaml } from './yamlTransformer';
 import PrismaModelNode from './components/PrismaModelNode';
 import PrismaEnumNode from './components/PrismaEnumNode';
+import { StartNode, EndNode, ProcessNode, DecisionNode, NoteNode } from './components/FlowNodes';
 
 // Declare the vscode API
 declare global {
@@ -78,17 +80,40 @@ const App: React.FC = () => {
   const [saveMessage, setSaveMessage] = useState<string>('');
   const currentSchemaRef = useRef<PrismaSchema | null>(null);
 
-  // Track selected field for highlighting
+  // Track selected field for highlighting (ERD)
   const [selectedField, setSelectedField] = useState<{ modelName: string; fieldName: string } | null>(null);
 
-  // Track selected model for highlighting all related models
+  // Track selected model for highlighting all related models (ERD)
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
-  // Determine which edges should be highlighted based on selected field or model
+  // Track selected flow node for highlighting (Flow diagrams)
+  const [selectedFlowNode, setSelectedFlowNode] = useState<string | null>(null);
+
+  // Track selected edge for highlighting (Flow diagrams)
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+
+  // Determine which edges should be highlighted based on selected field, model, node, or edge
   const highlightedEdges = useMemo(() => {
     const highlighted = new Set<string>();
 
-    // If a model is selected, highlight all its relationships
+    // If an edge is selected, highlight it
+    if (selectedEdge) {
+      highlighted.add(selectedEdge);
+      return highlighted;
+    }
+
+    // Flow diagram: highlight edges connected to selected node
+    if (selectedFlowNode) {
+      // Find all edges that connect to/from the selected node
+      edges.forEach(edge => {
+        if (edge.source === selectedFlowNode || edge.target === selectedFlowNode) {
+          highlighted.add(edge.id);
+        }
+      });
+      return highlighted;
+    }
+
+    // ERD: If a model is selected, highlight all its relationships
     if (selectedModel) {
       const model = currentSchemaRef.current?.models.find(m => m.name === selectedModel);
       if (!model) return highlighted;
@@ -116,7 +141,7 @@ const App: React.FC = () => {
       return highlighted;
     }
 
-    // If a field is selected, highlight its specific relationship
+    // ERD: If a field is selected, highlight its specific relationship
     if (!selectedField) return highlighted;
 
     const { modelName, fieldName } = selectedField;
@@ -157,7 +182,7 @@ const App: React.FC = () => {
     }
 
     return highlighted;
-  }, [selectedField, selectedModel]);
+  }, [selectedField, selectedModel, selectedFlowNode, selectedEdge, edges]);
 
   // Determine which models should be highlighted based on selection
   const highlightedModels = useMemo(() => {
@@ -204,6 +229,38 @@ const App: React.FC = () => {
     return highlighted;
   }, [selectedModel, selectedField]);
 
+  // Determine which flow nodes should be highlighted based on selection
+  const highlightedFlowNodes = useMemo(() => {
+    const highlighted = new Set<string>();
+
+    // If an edge is selected, highlight its source and target nodes
+    if (selectedEdge) {
+      const edge = edges.find(e => e.id === selectedEdge);
+      if (edge) {
+        highlighted.add(edge.source);
+        highlighted.add(edge.target);
+      }
+      return highlighted;
+    }
+
+    if (!selectedFlowNode) return highlighted;
+
+    // Add the selected node itself
+    highlighted.add(selectedFlowNode);
+
+    // Find all connected nodes (incoming and outgoing)
+    edges.forEach(edge => {
+      if (edge.source === selectedFlowNode) {
+        highlighted.add(edge.target); // Outgoing connection
+      }
+      if (edge.target === selectedFlowNode) {
+        highlighted.add(edge.source); // Incoming connection
+      }
+    });
+
+    return highlighted;
+  }, [selectedFlowNode, selectedEdge, edges]);
+
   // Register custom node types with props
   const nodeTypes: NodeTypes = useMemo(() => ({
     prismaModel: (props) => (
@@ -223,7 +280,81 @@ const App: React.FC = () => {
       />
     ),
     prismaEnum: PrismaEnumNode,
-  }), [selectedField, selectedModel, highlightedModels]);
+    // Flow diagram nodes - wrapped with click handlers and highlight state
+    start: (props) => (
+      <StartNode
+        {...props}
+        isSelected={selectedFlowNode === props.id}
+        highlighted={highlightedFlowNodes.has(props.id)}
+        onClick={() => {
+          setSelectedFlowNode(props.id === selectedFlowNode ? null : props.id);
+          // Clear other selections
+          setSelectedField(null);
+          setSelectedModel(null);
+          setSelectedEdge(null);
+        }}
+      />
+    ),
+    end: (props) => (
+      <EndNode
+        {...props}
+        isSelected={selectedFlowNode === props.id}
+        highlighted={highlightedFlowNodes.has(props.id)}
+        onClick={() => {
+          setSelectedFlowNode(props.id === selectedFlowNode ? null : props.id);
+          // Clear other selections
+          setSelectedField(null);
+          setSelectedModel(null);
+          setSelectedEdge(null);
+        }}
+      />
+    ),
+    process: (props) => (
+      <ProcessNode
+        {...props}
+        isSelected={selectedFlowNode === props.id}
+        highlighted={highlightedFlowNodes.has(props.id)}
+        onClick={() => {
+          setSelectedFlowNode(props.id === selectedFlowNode ? null : props.id);
+          // Clear other selections
+          setSelectedField(null);
+          setSelectedModel(null);
+          setSelectedEdge(null);
+        }}
+      />
+    ),
+    decision: (props) => (
+      <DecisionNode
+        {...props}
+        isSelected={selectedFlowNode === props.id}
+        highlighted={highlightedFlowNodes.has(props.id)}
+        onClick={() => {
+          setSelectedFlowNode(props.id === selectedFlowNode ? null : props.id);
+          // Clear other selections
+          setSelectedField(null);
+          setSelectedModel(null);
+          setSelectedEdge(null);
+        }}
+      />
+    ),
+    note: (props) => (
+      <NoteNode
+        {...props}
+        isSelected={selectedFlowNode === props.id}
+        highlighted={highlightedFlowNodes.has(props.id)}
+        onClick={() => {
+          setSelectedFlowNode(props.id === selectedFlowNode ? null : props.id);
+          // Clear other selections
+          setSelectedField(null);
+          setSelectedModel(null);
+          setSelectedEdge(null);
+        }}
+      />
+    ),
+  }), [selectedField, selectedModel, highlightedModels, selectedFlowNode, highlightedFlowNodes, selectedEdge]);
+
+  // Register custom edge types
+  const edgeTypes: EdgeTypes = useMemo(() => ({}), []);
 
   // Update edges with highlighting styles
   const styledEdges = useMemo(() => {
@@ -248,7 +379,7 @@ const App: React.FC = () => {
         style: {
           ...edge.style,
           strokeWidth: isHighlighted ? 4 : 1.5,
-          stroke: isHighlighted ? highlightColor : (edge.style?.stroke || '#ffffff'),
+          stroke: isHighlighted ? highlightColor : (edge.style?.stroke || '#64748b'),
         },
         animated: isHighlighted,
         zIndex: isHighlighted ? 10000 : -1000,
@@ -295,22 +426,46 @@ const App: React.FC = () => {
     // Handle YAML schema
     if (initialData.yamlSchema) {
       try {
-        const schema = parseYamlSchema(initialData.yamlSchema);
-        currentSchemaRef.current = schema;
-        setSchemaType('yaml');
-        setSchemaName('YAML Schema');
-        convertPrismaToFlowChart(schema).then(({ nodes: prismaNodes, edges: prismaEdges }) => {
-          setNodes(prismaNodes);
-          setEdges(prismaEdges);
-          setIsPrisma(true);
-        }).catch((error) => {
-          console.error('Error applying ELK layout:', error);
-          const { convertPrismaToFlowChartSync } = require('./prismaParser');
-          const { nodes: prismaNodes, edges: prismaEdges } = convertPrismaToFlowChartSync(schema);
-          setNodes(prismaNodes);
-          setEdges(prismaEdges);
-          setIsPrisma(true);
-        });
+        // Use parseYamlDiagram to get the raw parsed data with diagram_type
+        const parsed = parseYamlDiagram(initialData.yamlSchema);
+        const diagramType = parsed.diagram_type || 'erd';
+
+        console.log('Diagram type:', diagramType);
+
+        if (diagramType === 'erd') {
+          // Handle ERD diagrams (original YAML/Prisma format)
+          const schema = parseYamlSchema(initialData.yamlSchema);
+          currentSchemaRef.current = schema;
+          setSchemaType('yaml');
+          setSchemaName('YAML Schema (ERD)');
+          convertPrismaToFlowChart(schema).then(({ nodes: prismaNodes, edges: prismaEdges }) => {
+            setNodes(prismaNodes);
+            setEdges(prismaEdges);
+            setIsPrisma(true);
+          }).catch((error) => {
+            console.error('Error applying ELK layout:', error);
+            const { convertPrismaToFlowChartSync } = require('./prismaParser');
+            const { nodes: prismaNodes, edges: prismaEdges } = convertPrismaToFlowChartSync(schema);
+            setNodes(prismaNodes);
+            setEdges(prismaEdges);
+            setIsPrisma(true);
+          });
+        } else if (diagramType === 'flow') {
+          // Handle flow diagrams
+          const { parseFlowYaml, convertFlowToReactFlow } = require('./parsers/flowParser');
+          const flowSchema = parseFlowYaml(initialData.yamlSchema);
+
+          setSchemaType('yaml');
+          setSchemaName(`Flow: ${flowSchema.metadata.name}`);
+
+          convertFlowToReactFlow(flowSchema).then(({ nodes: flowNodes, edges: flowEdges }: { nodes: Node[]; edges: Edge[] }) => {
+            setNodes(flowNodes);
+            setEdges(flowEdges);
+            setIsPrisma(false);
+          }).catch((error: unknown) => {
+            console.error('Error applying flow layout:', error);
+          });
+        }
       } catch (error) {
         console.error('Error parsing YAML schema:', error);
       }
@@ -404,58 +559,66 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="w-screen h-screen bg-[#1E1E1E]">
-      {isPrisma && (
-        <div className="absolute top-4 left-4 z-10 bg-gray-800 px-4 py-3 rounded-lg shadow-md border border-gray-700">
-          <h2 className="text-sm font-bold text-gray-200 mb-1">🔷 {schemaName || 'Schema Visualization'}</h2>
-          <p className="text-xs text-gray-400">
-            {nodes.length} items ({nodes.filter(n => n.type === 'prismaModel').length} models, {nodes.filter(n => n.type === 'prismaEnum').length} enums)
-          </p>
-          <p className="text-xs text-gray-400 mt-1">{edges.length} relations</p>
-          <div className="mt-2 pt-2 border-t border-gray-700 flex gap-2 text-xs flex-wrap items-center">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-yellow-400 rounded"></span>
-              <span className="text-gray-300">PK</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-blue-400 rounded"></span>
-              <span className="text-gray-300">FK</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-400 rounded"></span>
-              <span className="text-gray-300">Unique</span>
-            </span>
-            {schemaType === 'prisma' && (
-              <>
-                <button
-                  onClick={handleSaveAsYaml}
-                  disabled={isSaving}
-                  className={`ml-auto px-2 py-1 text-white text-xs rounded ${
-                    isSaving
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {isSaving ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
-                    </span>
-                  ) : (
-                    'Save as YAML'
-                  )}
-                </button>
-                {saveMessage && (
-                  <span className={`text-xs ${saveMessage.startsWith('✓') ? 'text-green-400' : saveMessage.startsWith('✗') ? 'text-red-400' : 'text-gray-300'}`}>
-                    {saveMessage}
-                  </span>
+    <div className="w-screen h-screen bg-[#1e1e1e]">
+      {(isPrisma || schemaType === 'yaml') && (
+        <div className="absolute top-4 left-4 z-10 bg-[#2d2d2d] px-4 py-3 rounded-lg shadow-sm border border-gray-700">
+          <h2 className="text-sm font-bold text-gray-100 mb-1">🔷 {schemaName || 'Schema Visualization'}</h2>
+          {isPrisma ? (
+            <>
+              <p className="text-xs text-gray-400">
+                {nodes.length} items ({nodes.filter(n => n.type === 'prismaModel').length} models, {nodes.filter(n => n.type === 'prismaEnum').length} enums)
+              </p>
+              <p className="text-xs text-gray-400 mt-1">{edges.length} relations</p>
+              <div className="mt-2 pt-2 border-t border-gray-700 flex gap-2 text-xs flex-wrap items-center">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-yellow-400 rounded"></span>
+                  <span className="text-gray-300">PK</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-blue-400 rounded"></span>
+                  <span className="text-gray-300">FK</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-green-400 rounded"></span>
+                  <span className="text-gray-300">Unique</span>
+                </span>
+                {schemaType === 'prisma' && (
+                  <>
+                    <button
+                      onClick={handleSaveAsYaml}
+                      disabled={isSaving}
+                      className={`ml-auto px-2 py-1 text-white text-xs rounded ${
+                        isSaving
+                          ? 'bg-gray-600 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {isSaving ? (
+                        <span className="flex items-center gap-1">
+                          <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Saving...
+                        </span>
+                      ) : (
+                        'Save as YAML'
+                      )}
+                    </button>
+                    {saveMessage && (
+                      <span className={`text-xs ${saveMessage.startsWith('✓') ? 'text-green-400' : saveMessage.startsWith('✗') ? 'text-red-400' : 'text-gray-300'}`}>
+                        {saveMessage}
+                      </span>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {nodes.length} nodes, {edges.length} edges
+            </p>
+          )}
         </div>
       )}
       <ReactFlow
@@ -464,29 +627,27 @@ const App: React.FC = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onEdgeClick={(event, edge) => {
+          setSelectedEdge(edge.id === selectedEdge ? null : edge.id);
+          // Clear other selections
+          setSelectedFlowNode(null);
+          setSelectedField(null);
+          setSelectedModel(null);
+        }}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{
           animated: false,
-          style: { stroke: '#ffffff', strokeWidth: 1.5 },
+          style: { stroke: '#64748b', strokeWidth: 2 },
         }}
         proOptions={{ hideAttribution: true }}
-        style={{ background: '#1E1E1E' }}
+        style={{ background: '#1e1e1e' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#333" />
-        <Controls className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!text-white [&>button:hover]:!bg-gray-600" />
-        <MiniMap
-          nodeColor={(node) => {
-            const data = node.data as any;
-            if (data.color === 'yellow') return '#f59e0b';
-            if (data.color === 'red') return '#ef4444';
-            if (data.color === 'teal') return '#14b8a6';
-            return '#6b7280';
-          }}
-          maskColor="rgba(0, 0, 0, 0.6)"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#4b5563" />
+        <Controls className="!bg-[#2d2d2d] !border-gray-700 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!text-gray-300 [&>button:hover]:!bg-gray-600" />
       </ReactFlow>
     </div>
   );
