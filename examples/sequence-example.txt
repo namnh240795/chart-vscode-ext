@@ -1,0 +1,174 @@
+# Sequence Diagram Example
+# This demonstrates the sequence diagram YAML format for the Chart & Flow Diagrams extension
+
+diagram_type: sequence
+
+metadata:
+  name: User Authentication Flow
+  description: A sequence diagram showing the user authentication process
+  version: "1.0"
+
+style:
+  default_color: blue
+  participant_width: 150
+  show_lifelines: true
+  show_activations: true
+
+participants:
+  user:
+    type: actor
+    label: "User"
+    description: "End user"
+    color: green
+    order: 0
+
+  frontend:
+    type: participant
+    label: "Frontend App"
+    description: "Web application"
+    color: blue
+    order: 1
+
+  api:
+    type: participant
+    label: "API Server"
+    description: "REST API"
+    color: purple
+    order: 2
+
+  database:
+    type: participant
+    label: "Database"
+    description: "PostgreSQL"
+    color: orange
+    order: 3
+
+  cache:
+    type: participant
+    label: "Redis Cache"
+    description: "Cache layer"
+    color: red
+    order: 4
+
+messages:
+  # User login flow
+  - id: msg1
+    from: user
+    to: frontend
+    label: "Enter credentials"
+    arrow_type: solid
+    sequence_order: 1
+
+  - id: msg2
+    from: frontend
+    to: api
+    label: "POST /login"
+    arrow_type: solid
+    sequence_order: 2
+
+  - id: msg3
+    from: api
+    to: cache
+    label: "Check rate limit"
+    arrow_type: solid
+    sequence_order: 3
+
+  - id: msg4
+    from: cache
+    to: api
+    label: "Allowed"
+    arrow_type: dashed
+    sequence_order: 4
+
+  - id: msg5
+    from: api
+    to: database
+    label: "Query user"
+    arrow_type: solid
+    sequence_order: 5
+
+  - id: msg6
+    from: database
+    to: api
+    label: "User data"
+    arrow_type: dashed
+    sequence_order: 6
+
+  - id: msg7
+    from: api
+    to: cache
+    label: "Store session"
+    arrow_type: open_solid
+    sequence_order: 7
+
+  - id: msg8
+    from: api
+    to: frontend
+    label: "JWT token"
+    arrow_type: dashed
+    sequence_order: 8
+
+  - id: msg9
+    from: frontend
+    to: user
+    label: "Login success"
+    arrow_type: solid
+    sequence_order: 9
+
+  # User fetching profile data
+  - id: msg10
+    from: user
+    to: frontend
+    label: "Request profile"
+    arrow_type: solid
+    sequence_order: 10
+
+  - id: msg11
+    from: frontend
+    to: cache
+    label: "GET /profile (cached)"
+    arrow_type: solid
+    sequence_order: 11
+
+  - id: msg12
+    from: cache
+    to: frontend
+    label: "Cache hit!"
+    arrow_type: dashed
+    sequence_order: 12
+
+  - id: msg13
+    from: frontend
+    to: user
+    label: "Display profile"
+    arrow_type: solid
+    sequence_order: 13
+
+  # User logout (demonstrates async/one-way messages)
+  - id: msg14
+    from: user
+    to: frontend
+    label: "Logout"
+    arrow_type: solid
+    sequence_order: 14
+
+  - id: msg15
+    from: frontend
+    to: api
+    label: "POST /logout"
+    arrow_type: solid
+    sequence_order: 15
+
+  - id: msg16
+    from: api
+    to: cache
+    label: "Invalidate session"
+    arrow_type: open_dashed
+    sequence_order: 16
+
+  - id: msg17
+    from: api
+    to: frontend
+    label: "Logged out"
+    arrow_type: dashed
+    sequence_order: 17

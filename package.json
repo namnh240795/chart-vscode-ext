@@ -1,13 +1,39 @@
 {
   "name": "chart-vscode-ext",
-  "displayName": "Chart VSCode Extension",
-  "description": "A VS Code extension with React Flow visualization",
-  "version": "0.0.1",
+  "displayName": "Chart & Flow Diagrams",
+  "description": "Visualize Prisma schemas (ERD) and flow diagrams with interactive diagrams, auto-layout, and YAML support",
+  "version": "0.0.2",
+  "publisher": "namnguyen240795",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/namnh240795/chart-vscode-ext"
+  },
+  "bugs": {
+    "url": "https://github.com/namnh240795/chart-vscode-ext/issues"
+  },
+  "homepage": "https://github.com/namnh240795/chart-vscode-ext#readme",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.109.0"
   },
   "categories": [
+    "Visualization",
     "Other"
+  ],
+  "keywords": [
+    "prisma",
+    "erd",
+    "database",
+    "schema",
+    "flow",
+    "flowchart",
+    "sequence",
+    "sequence-diagram",
+    "diagram",
+    "visualization",
+    "react",
+    "yaml",
+    "cryml"
   ],
   "activationEvents": [
     "onCommand:chart-vscode-ext.openFlow",
@@ -66,8 +92,13 @@
     "languages": [
       {
         "id": "cryml",
-        "aliases": ["Cryml", "cryml"],
-        "extensions": [".cryml"],
+        "aliases": [
+          "Cryml",
+          "cryml"
+        ],
+        "extensions": [
+          ".cryml"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -137,6 +168,7 @@
   "packageManager": "pnpm@10.20.0",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/d3": "^7.4.3",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.2.0",
     "@types/react": "^19.2.11",
@@ -157,6 +189,7 @@
     "webpack-cli": "^6.0.1"
   },
   "dependencies": {
+    "d3": "^7.9.0",
     "elkjs": "^0.11.0",
     "yaml": "^2.8.2"
   }

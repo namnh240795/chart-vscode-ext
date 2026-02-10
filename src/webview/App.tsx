@@ -23,6 +23,7 @@ import { prismaToYaml } from './yamlTransformer';
 import PrismaModelNode from './components/PrismaModelNode';
 import PrismaEnumNode from './components/PrismaEnumNode';
 import { StartNode, EndNode, ProcessNode, DecisionNode, NoteNode } from './components/FlowNodes';
+import SequenceDiagramD3 from './components/SequenceDiagramD3';
 
 // Declare the vscode API
 declare global {
@@ -75,6 +76,7 @@ const App: React.FC = () => {
   const [edges, setEdges] = useState<Edge[]>(initialEdges);
   const [isPrisma, setIsPrisma] = useState(false);
   const [schemaType, setSchemaType] = useState<'prisma' | 'yaml' | null>(null);
+  const [diagramKind, setDiagramKind] = useState<'erd' | 'flow' | 'sequence' | null>(null);
   const [schemaName, setSchemaName] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>('');
@@ -351,9 +353,11 @@ const App: React.FC = () => {
         }}
       />
     ),
+    // Sequence diagram node
+    sequenceDiagram: SequenceDiagramD3,
   }), [selectedField, selectedModel, highlightedModels, selectedFlowNode, highlightedFlowNodes, selectedEdge]);
 
-  // Register custom edge types
+  // Register custom edge types (sequence diagrams don't use edges)
   const edgeTypes: EdgeTypes = useMemo(() => ({}), []);
 
   // Update edges with highlighting styles
@@ -437,6 +441,7 @@ const App: React.FC = () => {
           const schema = parseYamlSchema(initialData.yamlSchema);
           currentSchemaRef.current = schema;
           setSchemaType('yaml');
+          setDiagramKind('erd');
           setSchemaName('YAML Schema (ERD)');
           convertPrismaToFlowChart(schema).then(({ nodes: prismaNodes, edges: prismaEdges }) => {
             setNodes(prismaNodes);
@@ -456,6 +461,7 @@ const App: React.FC = () => {
           const flowSchema = parseFlowYaml(initialData.yamlSchema);
 
           setSchemaType('yaml');
+          setDiagramKind('flow');
           setSchemaName(`Flow: ${flowSchema.metadata.name}`);
 
           convertFlowToReactFlow(flowSchema).then(({ nodes: flowNodes, edges: flowEdges }: { nodes: Node[]; edges: Edge[] }) => {
@@ -464,6 +470,22 @@ const App: React.FC = () => {
             setIsPrisma(false);
           }).catch((error: unknown) => {
             console.error('Error applying flow layout:', error);
+          });
+        } else if (diagramType === 'sequence') {
+          // Handle sequence diagrams - use React Flow
+          const { parseSequenceYaml, convertSequenceToReactFlow } = require('./parsers/sequenceParser');
+          const sequenceSchema = parseSequenceYaml(initialData.yamlSchema);
+
+          setSchemaType('yaml');
+          setDiagramKind('sequence');
+          setSchemaName(`Sequence: ${sequenceSchema.metadata.name}`);
+
+          convertSequenceToReactFlow(sequenceSchema).then(({ nodes: sequenceNodes, edges: sequenceEdges }: { nodes: Node[]; edges: Edge[] }) => {
+            setNodes(sequenceNodes);
+            setEdges(sequenceEdges);
+            setIsPrisma(false);
+          }).catch((error: unknown) => {
+            console.error('Error applying sequence layout:', error);
           });
         }
       } catch (error) {
@@ -563,7 +585,11 @@ const App: React.FC = () => {
       {(isPrisma || schemaType === 'yaml') && (
         <div className="absolute top-4 left-4 z-10 bg-[#2d2d2d] px-4 py-3 rounded-lg shadow-sm border border-gray-700">
           <h2 className="text-sm font-bold text-gray-100 mb-1">🔷 {schemaName || 'Schema Visualization'}</h2>
-          {isPrisma ? (
+          {diagramKind === 'sequence' ? (
+            <p className="text-xs text-gray-400">
+              {Object.keys(nodes[0]?.data?.participants || {}).length} participants, {nodes[0]?.data?.messages?.length || 0} messages
+            </p>
+          ) : isPrisma ? (
             <>
               <p className="text-xs text-gray-400">
                 {nodes.length} items ({nodes.filter(n => n.type === 'prismaModel').length} models, {nodes.filter(n => n.type === 'prismaEnum').length} enums)

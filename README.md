@@ -6,6 +6,7 @@ A Visual Studio Code extension for visualizing database schemas (ERD) and flow d
 
 - 🗃️ **ERD Diagrams** - Visualize your database schema with automatic layout
 - 📊 **Flow Diagrams** - Create flowcharts with Start, End, Process, Decision, and Note nodes
+- 🔀 **Sequence Diagrams** - Show interactions between actors/participants over time
 - 🎨 **Color-Coded Groups** - Organize elements with color-based grouping
 - 🔍 **Interactive Navigation** - Click nodes/edges to highlight relationships
 - 📝 **Multiple Formats** - Support for Prisma, YAML, and CRYML files
@@ -83,6 +84,7 @@ After opening a Prisma schema, you can export it to YAML format:
 5. The diagram will open based on the `diagram_type` in the file:
    - `diagram_type: "erd"` → Database schema visualization
    - `diagram_type: "flow"` → Flow diagram visualization
+   - `diagram_type: "sequence"` → Sequence diagram visualization
 
 #### Method 2: From Command Palette
 1. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
@@ -112,6 +114,7 @@ Before opening a CRYML file, you can validate its syntax:
 4. You'll see a notification:
    - ✅ "✓ Valid ERD diagram"
    - ✅ "✓ Valid FLOW diagram"
+   - ✅ "✓ Valid SEQUENCE diagram"
    - ❌ Error message if something is invalid
 
 ### Tips and Tricks
@@ -659,6 +662,230 @@ groups:
     color: "red"
 ```
 
+## Sequence Diagram Syntax
+
+Sequence diagrams allow you to visualize interactions between actors/participants over time.
+
+### Basic Structure
+
+```yaml
+diagram_type: "sequence"
+
+metadata:
+  name: "User Authentication Flow"
+  description: "A sequence diagram showing authentication process"
+
+style:
+  default_color: "blue"
+  participant_width: 150
+  show_lifelines: true
+  show_activations: true
+
+participants:
+  user:
+    type: actor
+    label: "User"
+    description: "End user"
+    color: "green"
+    order: 0
+
+  frontend:
+    type: participant
+    label: "Frontend App"
+    description: "Web application"
+    color: "blue"
+    order: 1
+
+messages:
+  - id: msg1
+    from: user
+    to: frontend
+    label: "Enter credentials"
+    arrow_type: solid
+    sequence_order: 1
+
+  - id: msg2
+    from: frontend
+    to: user
+    label: "Login success"
+    arrow_type: dashed
+    sequence_order: 2
+```
+
+### Participant Types
+
+#### Actor
+- **Type**: `actor`
+- **Purpose**: Represents a human user or external system
+- **Visual**: Stick figure icon + label
+
+```yaml
+user:
+  type: actor
+  label: "User"
+  description: "End user"
+  color: "green"
+  order: 0
+```
+
+#### Participant
+- **Type**: `participant`
+- **Purpose**: Represents a system component, service, or database
+- **Visual**: Rectangle box with label
+
+```yaml
+api:
+  type: participant
+  label: "API Server"
+  description: "REST API"
+  color: "purple"
+  order: 1
+```
+
+### Participant Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `type` | string | Yes | `actor` or `participant` |
+| `label` | string | Yes | Display name |
+| `description` | string | No | Additional details |
+| `color` | string | No | Color theme |
+| `order` | number | No | Horizontal position (0-indexed) |
+
+### Arrow Types
+
+| Type | Description | Usage |
+|------|-------------|-------|
+| `solid` | Solid line with filled arrow | Synchronous calls |
+| `dashed` | Dashed line with open arrow | Asynchronous responses |
+| `open_solid` | Solid line with open arrow | One-way message |
+| `open_dashed` | Dashed line with open arrow | One-way async message |
+| `dot` | Line with dot endpoint | Callback/notification |
+
+### Message Properties
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `id` | string | Yes | Unique message identifier |
+| `from` | string | Yes | Source participant ID |
+| `to` | string | Yes | Target participant ID |
+| `label` | string | Yes | Message text |
+| `arrow_type` | string | No | Arrow style (default: `solid`) |
+| `note` | string | No | Optional note attached to message |
+| `sequence_order` | number | Yes | Vertical position (time order) |
+
+### Style Options
+
+| Option | Type | Values | Default |
+|--------|------|--------|---------|
+| `default_color` | string | `blue`, `green`, `red`, `orange`, `purple`, `gray`, `yellow`, `teal` | `blue` |
+| `participant_width` | number | Any positive integer | `150` |
+| `show_lifelines` | boolean | `true`, `false` | `true` |
+| `show_activations` | boolean | `true`, `false` | `true` |
+
+### Available Colors
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| `blue` | #3b82f6 | Default, general components |
+| `green` | #10b981 | Actors, success states |
+| `red` | #ef4444 | Errors, critical components |
+| `orange` | #f97316 | Warnings, important services |
+| `purple` | #8b5cf6 | Special services |
+| `gray` | #6b7280 | Neutral components |
+| `yellow` | #fbbf24 | Notes, auxiliary |
+| `teal` | #14b8a6 | Databases, storage |
+
+### Complete Sequence Example
+
+```yaml
+diagram_type: "sequence"
+
+metadata:
+  name: "User Authentication Flow"
+  description: "A sequence diagram showing the user authentication process"
+  version: "1.0"
+
+style:
+  default_color: blue
+  participant_width: 150
+  show_lifelines: true
+  show_activations: true
+
+participants:
+  user:
+    type: actor
+    label: "User"
+    description: "End user"
+    color: green
+    order: 0
+
+  frontend:
+    type: participant
+    label: "Frontend App"
+    description: "Web application"
+    color: blue
+    order: 1
+
+  api:
+    type: participant
+    label: "API Server"
+    description: "REST API"
+    color: purple
+    order: 2
+
+  database:
+    type: participant
+    label: "Database"
+    description: "PostgreSQL"
+    color: orange
+    order: 3
+
+messages:
+  # User login flow
+  - id: msg1
+    from: user
+    to: frontend
+    label: "Enter credentials"
+    arrow_type: solid
+    sequence_order: 1
+
+  - id: msg2
+    from: frontend
+    to: api
+    label: "POST /login"
+    arrow_type: solid
+    sequence_order: 2
+
+  - id: msg3
+    from: api
+    to: database
+    label: "Query user"
+    arrow_type: solid
+    sequence_order: 3
+
+  - id: msg4
+    from: database
+    to: api
+    label: "User data"
+    arrow_type: dashed
+    sequence_order: 4
+
+  - id: msg5
+    from: api
+    to: frontend
+    label: "JWT token"
+    arrow_type: dashed
+    sequence_order: 5
+
+  - id: msg6
+    from: frontend
+    to: user
+    label: "Login success"
+    arrow_type: solid
+    sequence_order: 6
+```
+
 ## Interactive Features
 
 ### Click to Highlight
@@ -697,35 +924,34 @@ This will check your YAML file for:
 Check out the `examples/` directory for complete examples:
 - `flow-order-processing.cryml` - Order processing flow diagram
 - `simple-ecommerce.cryml` - E-commerce database schema
+- `sequence-example.cryml` - User authentication sequence diagram
 - `quick-reference.cryml` - Quick reference guide
 
 ## Development
 
-### Project Structure
-```
-chart-vscode-ext/
-├── src/
-│   ├── extension.ts          # VS Code extension entry point
-│   └── webview/
-│       ├── App.tsx           # Main React component
-│       ├── components/       # React components
-│       ├── parsers/          # YAML/Prisma parsers
-│       └── types/            # TypeScript types
-├── examples/                 # Example files
-└── package.json             # Extension manifest
-```
+For development documentation, architecture guide, and contribution guidelines, see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
-### Build Commands
+**Quick start**:
 ```bash
+# Install dependencies
+pnpm install
+
 # Compile extension
-npm run compile
+pnpm run compile
 
-# Watch for changes
-npm run watch
+# Watch for changes during development
+pnpm run watch
 
-# Run tests
-npm run test
+# Press F5 in VS Code to launch Extension Development Host
 ```
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for:
+- Architecture overview and data flow
+- File structure guide
+- Common development tasks (adding nodes, colors, features)
+- Testing procedures
+- Build and deployment instructions
+- Troubleshooting guide
 
 ## License
 
