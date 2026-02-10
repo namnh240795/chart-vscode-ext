@@ -1,0 +1,270 @@
+# Sequence Diagram Example with Blocks
+# This demonstrates alt, opt, loop, and par blocks in sequence diagrams
+
+diagram_type: sequence
+
+metadata:
+  name: User Authentication with Cache
+  description: Demonstrates alt, opt, loop, and par blocks
+  version: "2.0"
+
+style:
+  default_color: blue
+  participant_width: 150
+  show_lifelines: true
+  show_activations: true
+
+participants:
+  user:
+    type: actor
+    label: "User"
+    description: "End user"
+    color: green
+    order: 0
+
+  frontend:
+    type: participant
+    label: "Frontend App"
+    description: "Web application"
+    color: blue
+    order: 1
+
+  api:
+    type: participant
+    label: "API Server"
+    description: "REST API"
+    color: purple
+    order: 2
+
+  database:
+    type: participant
+    label: "Database"
+    description: "PostgreSQL"
+    color: orange
+    order: 3
+
+  cache:
+    type: participant
+    label: "Redis Cache"
+    description: "Cache layer"
+    color: red
+    order: 4
+
+messages:
+  # User login flow
+  - id: msg1
+    from: user
+    to: frontend
+    label: "Enter credentials"
+    arrow_type: solid
+    sequence_order: 1
+
+  - id: msg2
+    from: frontend
+    to: api
+    label: "POST /login"
+    arrow_type: solid
+    sequence_order: 2
+
+  - id: msg3
+    from: api
+    to: cache
+    label: "Check rate limit"
+    arrow_type: solid
+    sequence_order: 3
+
+  - id: msg4
+    from: cache
+    to: api
+    label: "Allowed"
+    arrow_type: dashed
+    sequence_order: 4
+
+  - id: msg5
+    from: api
+    to: database
+    label: "Query user"
+    arrow_type: solid
+    sequence_order: 5
+
+  - id: msg6
+    from: database
+    to: api
+    label: "User data"
+    arrow_type: dashed
+    sequence_order: 6
+
+  - id: msg7
+    from: api
+    to: cache
+    label: "Store session"
+    arrow_type: open_solid
+    sequence_order: 7
+
+  - id: msg8
+    from: api
+    to: frontend
+    label: "JWT token"
+    arrow_type: dashed
+    sequence_order: 8
+
+  - id: msg9
+    from: frontend
+    to: user
+    label: "Login success"
+    arrow_type: solid
+    sequence_order: 9
+
+  # User fetching profile data
+  - id: msg10
+    from: user
+    to: frontend
+    label: "Request profile"
+    arrow_type: solid
+    sequence_order: 10
+
+  - id: msg11
+    from: frontend
+    to: cache
+    label: "GET /profile"
+    arrow_type: solid
+    sequence_order: 11
+
+  - id: msg12
+    from: cache
+    to: frontend
+    label: "Cache hit!"
+    arrow_type: dashed
+    sequence_order: 12
+
+  - id: msg13
+    from: frontend
+    to: user
+    label: "Display profile"
+    arrow_type: solid
+    sequence_order: 13
+
+  # Alt block: Cache miss scenario
+  - id: msg14
+    from: frontend
+    to: api
+    label: "GET /profile"
+    arrow_type: solid
+    sequence_order: 14
+
+  - id: msg15
+    from: api
+    to: database
+    label: "Query profile"
+    arrow_type: solid
+    sequence_order: 15
+
+  - id: msg16
+    from: database
+    to: api
+    label: "Profile data"
+    arrow_type: dashed
+    sequence_order: 16
+
+  - id: msg17
+    from: api
+    to: cache
+    label: "Store in cache"
+    arrow_type: open_solid
+    sequence_order: 17
+
+  - id: msg18
+    from: api
+    to: frontend
+    label: "Return profile"
+    arrow_type: dashed
+    sequence_order: 18
+
+  # Opt block: Optional validation
+  - id: msg19
+    from: frontend
+    to: api
+    label: "Validate token"
+    arrow_type: solid
+    sequence_order: 19
+
+  - id: msg20
+    from: api
+    to: cache
+    label: "Check token"
+    arrow_type: solid
+    sequence_order: 20
+
+  - id: msg21
+    from: cache
+    to: api
+    label: "Token valid"
+    arrow_type: dashed
+    sequence_order: 21
+
+  # Logout
+  - id: msg22
+    from: user
+    to: frontend
+    label: "Logout"
+    arrow_type: solid
+    sequence_order: 22
+
+  - id: msg23
+    from: frontend
+    to: api
+    label: "POST /logout"
+    arrow_type: solid
+    sequence_order: 23
+
+  - id: msg24
+    from: api
+    to: cache
+    label: "Invalidate session"
+    arrow_type: open_dashed
+    sequence_order: 24
+
+  - id: msg25
+    from: api
+    to: frontend
+    label: "Logged out"
+    arrow_type: dashed
+    sequence_order: 25
+
+# ============================================================================
+# Blocks: Demonstrate alt, opt, loop, and par constructs
+# ============================================================================
+
+blocks:
+  # Alt block: Show alternative paths (cache hit vs cache miss)
+  - id: alt1
+    type: alt
+    condition: "Cache check"
+    sequence_order: 1
+    messages: ["msg11", "msg12", "msg13"]
+    alt_sections:
+      - condition: "Cache hit"
+        messages: ["msg11", "msg12", "msg13"]
+      - condition: "Cache miss"
+        messages: ["msg14", "msg15", "msg16", "msg17", "msg18"]
+
+  # Opt block: Show optional validation flow
+  - id: opt1
+    type: opt
+    condition: "If token present"
+    sequence_order: 2
+    messages: ["msg19", "msg20", "msg21"]
+
+  # Loop block: Show retry logic (could be used for retry scenarios)
+  # - id: loop1
+  #   type: loop
+  #   condition: "Retry (max 3)"
+  #   sequence_order: 3
+  #   messages: []
+
+  # Par block: Show parallel operations
+  # - id: par1
+  #   type: par
+  #   condition: "Parallel requests"
+  #   sequence_order: 4
+  #   messages: []

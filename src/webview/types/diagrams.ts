@@ -1,13 +1,13 @@
 /**
  * Diagram types for .cryml files
- * Supports ERD and Flow diagram types
+ * Supports ERD, Flow, and Sequence diagram types
  */
 
 // ============================================================================
 // Common Types
 // ============================================================================
 
-export type DiagramType = 'erd' | 'flow';
+export type DiagramType = 'erd' | 'flow' | 'sequence';
 
 export interface BaseDiagram {
   diagram_type: DiagramType;
@@ -145,10 +145,84 @@ export interface FlowGroup {
 }
 
 // ============================================================================
+// Sequence Diagram Types
+// ============================================================================
+
+export interface SequenceDiagram extends BaseDiagram {
+  diagram_type: 'sequence';
+  metadata: DiagramMetadata;
+  style?: SequenceStyle;
+  participants: Record<string, SequenceParticipant>;
+  messages: SequenceMessage[];
+  notes?: SequenceNote[];
+  blocks?: SequenceBlock[];
+}
+
+export interface SequenceStyle {
+  default_color?: SequenceColor;
+  participant_width?: number;
+  show_lifelines?: boolean;
+  show_activations?: boolean;
+}
+
+export type SequenceColor = 'blue' | 'green' | 'red' | 'orange' | 'purple' | 'gray' | 'yellow' | 'teal';
+
+export type ParticipantType = 'participant' | 'actor';
+
+export interface SequenceParticipant {
+  type: ParticipantType;
+  label: string;
+  description?: string;
+  group?: string;
+  color?: SequenceColor;
+  order?: number; // For controlling the horizontal order
+}
+
+export type ArrowType = 'solid' | 'dashed' | 'open_solid' | 'open_dashed' | 'dot';
+
+export interface SequenceMessage {
+  id: string;
+  from: string; // Participant ID
+  to: string; // Participant ID
+  label: string;
+  arrow_type?: ArrowType;
+  note?: string;
+  sequence_order: number; // For vertical ordering (time)
+}
+
+export interface SequenceNote {
+  id: string;
+  text: string;
+  position: {
+    participant?: string; // Over a specific participant
+    over?: string[]; // Over multiple participants
+    y: number; // Vertical position
+  };
+  style?: 'note' | 'warning' | 'error';
+}
+
+export type BlockType = 'alt' | 'opt' | 'loop' | 'par' | 'critical' | 'neg';
+
+export interface AltSection {
+  condition?: string; // Condition for this section (e.g., "authenticated", "has cache")
+  messages: string[]; // Message IDs in this section
+}
+
+export interface SequenceBlock {
+  id: string;
+  type: BlockType;
+  label?: string;
+  condition?: string;
+  messages: string[]; // Message IDs in this block
+  alt_sections?: AltSection[]; // For alt blocks: multiple alternative paths
+  sequence_order: number;
+}
+
+// ============================================================================
 // Union Type
 // ============================================================================
 
-export type AnyDiagram = ERDDiagram | FlowDiagram;
+export type AnyDiagram = ERDDiagram | FlowDiagram | SequenceDiagram;
 
 // ============================================================================
 // Helper Type Guards
@@ -160,4 +234,8 @@ export function isERDDiagram(diagram: AnyDiagram): diagram is ERDDiagram {
 
 export function isFlowDiagram(diagram: AnyDiagram): diagram is FlowDiagram {
   return diagram.diagram_type === 'flow';
+}
+
+export function isSequenceDiagram(diagram: AnyDiagram): diagram is SequenceDiagram {
+  return diagram.diagram_type === 'sequence';
 }

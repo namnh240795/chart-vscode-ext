@@ -17,7 +17,12 @@
       "Bash(npm run build:*)",
       "Bash(npm run)",
       "WebSearch",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(vsce package:*)",
+      "Bash(open:*)",
+      "Bash(vsce publish:*)",
+      "Bash(npm version patch)",
+      "Bash(pnpm run compile:extension:*)"
     ]
   }
 }
