@@ -6,9 +6,11 @@ A Visual Studio Code extension for visualizing database schemas (ERD) and flow d
 
 - 🗃️ **ERD Diagrams** - Visualize your database schema with automatic layout
 - 📊 **Flow Diagrams** - Create flowcharts with Start, End, Process, Decision, and Note nodes
-- 🔀 **Sequence Diagrams** - Show interactions between actors/participants over time
+- 🔀 **Sequence Diagrams** - Show interactions between participants over time with UML blocks (alt, opt, loop, par)
+- 🔗 **Relational Highlighting** - Click any element to highlight all related elements across the diagram
+- 👆 **Interactive Navigation** - Click participants, messages, or blocks to see relationships
 - 🎨 **Color-Coded Groups** - Organize elements with color-based grouping
-- 🔍 **Interactive Navigation** - Click nodes/edges to highlight relationships
+- 📍 **Participants at Both Ends** - Sequence diagrams show participant headers at top and bottom
 - 📝 **Multiple Formats** - Support for Prisma, YAML, and CRYML files
 - 💾 **Export to YAML** - Convert Prisma schemas to YAML format
 - ⚡ **Auto-Layout** - ELK-based automatic layout with manual positioning support
@@ -683,7 +685,7 @@ style:
 
 participants:
   user:
-    type: actor
+    type: participant
     label: "User"
     description: "End user"
     color: "green"
@@ -712,28 +714,86 @@ messages:
     sequence_order: 2
 ```
 
+### Sequence Blocks
+
+Sequence diagrams support UML-style blocks for showing control flow:
+
+#### Alt Block (Alternative)
+Shows alternative paths based on a condition:
+
+```yaml
+blocks:
+  - id: alt1
+    type: alt
+    condition: "Cache check"
+    sequence_order: 1
+    messages: ["msg11", "msg12", "msg13"]
+    alt_sections:
+      - condition: "Cache hit"
+        messages: ["msg11", "msg12", "msg13"]
+      - condition: "Cache miss"
+        messages: ["msg14", "msg15", "msg16", "msg17", "msg18"]
+```
+
+#### Opt Block (Optional)
+Shows an optional flow:
+
+```yaml
+blocks:
+  - id: opt1
+    type: opt
+    condition: "If token present"
+    sequence_order: 2
+    messages: ["msg19", "msg20", "msg21"]
+```
+
+#### Loop Block (Iteration)
+Shows a repeating loop:
+
+```yaml
+blocks:
+  - id: loop1
+    type: loop
+    condition: "Retry (max 3)"
+    sequence_order: 3
+    messages: ["msg1", "msg2"]
+```
+
+#### Par Block (Parallel)
+Shows parallel operations:
+
+```yaml
+blocks:
+  - id: par1
+    type: par
+    condition: "Parallel requests"
+    sequence_order: 4
+    messages: ["msg1", "msg2", "msg3"]
+```
+
+#### Block Types
+
+| Type | Description | Color |
+|------|-------------|-------|
+| `alt` | Alternative paths | Red |
+| `opt` | Optional flow | Blue |
+| `loop` | Iteration/Loop | Green |
+| `par` | Parallel operations | Purple |
+| `critical` | Critical section | Yellow |
+| `neg` | Negative flow | Gray |
+
 ### Participant Types
 
-#### Actor
-- **Type**: `actor`
-- **Purpose**: Represents a human user or external system
-- **Visual**: Stick figure icon + label
+Both actor and participant types now use the same clean visual style (rectangle header with label).
 
 ```yaml
 user:
-  type: actor
+  type: participant
   label: "User"
   description: "End user"
   color: "green"
   order: 0
-```
 
-#### Participant
-- **Type**: `participant`
-- **Purpose**: Represents a system component, service, or database
-- **Visual**: Rectangle box with label
-
-```yaml
 api:
   type: participant
   label: "API Server"
@@ -746,7 +806,7 @@ api:
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
-| `type` | string | Yes | `actor` or `participant` |
+| `type` | string | Yes | `participant` (actor icons removed, same visual style) |
 | `label` | string | Yes | Display name |
 | `description` | string | No | Additional details |
 | `color` | string | No | Color theme |
@@ -788,7 +848,7 @@ api:
 | Color | Hex | Usage |
 |-------|-----|-------|
 | `blue` | #3b82f6 | Default, general components |
-| `green` | #10b981 | Actors, success states |
+| `green` | #10b981 | Success states |
 | `red` | #ef4444 | Errors, critical components |
 | `orange` | #f97316 | Warnings, important services |
 | `purple` | #8b5cf6 | Special services |
@@ -796,15 +856,15 @@ api:
 | `yellow` | #fbbf24 | Notes, auxiliary |
 | `teal` | #14b8a6 | Databases, storage |
 
-### Complete Sequence Example
+### Complete Sequence Example with Blocks
 
 ```yaml
-diagram_type: "sequence"
+diagram_type: sequence
 
 metadata:
-  name: "User Authentication Flow"
-  description: "A sequence diagram showing the user authentication process"
-  version: "1.0"
+  name: User Authentication with Cache
+  description: Demonstrates alt and opt blocks
+  version: 2.0
 
 style:
   default_color: blue
@@ -814,90 +874,91 @@ style:
 
 participants:
   user:
-    type: actor
-    label: "User"
-    description: "End user"
+    type: participant
+    label: User
+    description: End user
     color: green
     order: 0
 
   frontend:
     type: participant
-    label: "Frontend App"
-    description: "Web application"
+    label: Frontend App
+    description: Web application
     color: blue
     order: 1
 
-  api:
+  cache:
     type: participant
-    label: "API Server"
-    description: "REST API"
-    color: purple
+    label: Redis Cache
+    description: Cache layer
+    color: red
     order: 2
 
-  database:
-    type: participant
-    label: "Database"
-    description: "PostgreSQL"
-    color: orange
-    order: 3
-
 messages:
-  # User login flow
-  - id: msg1
+  - id: msg11
     from: user
     to: frontend
-    label: "Enter credentials"
+    label: Request profile
     arrow_type: solid
-    sequence_order: 1
+    sequence_order: 11
 
-  - id: msg2
+  - id: msg12
     from: frontend
-    to: api
-    label: "POST /login"
+    to: cache
+    label: GET /profile
     arrow_type: solid
-    sequence_order: 2
+    sequence_order: 12
 
-  - id: msg3
-    from: api
-    to: database
-    label: "Query user"
-    arrow_type: solid
-    sequence_order: 3
-
-  - id: msg4
-    from: database
-    to: api
-    label: "User data"
-    arrow_type: dashed
-    sequence_order: 4
-
-  - id: msg5
-    from: api
+  - id: msg13
+    from: cache
     to: frontend
-    label: "JWT token"
+    label: Cache hit!
     arrow_type: dashed
-    sequence_order: 5
+    sequence_order: 13
 
-  - id: msg6
-    from: frontend
-    to: user
-    label: "Login success"
-    arrow_type: solid
-    sequence_order: 6
+blocks:
+  - id: alt1
+    type: alt
+    condition: Cache check
+    sequence_order: 1
+    messages: [msg11, msg12, msg13]
+    alt_sections:
+      - condition: Cache hit
+        messages: [msg11, msg12, msg13]
+      - condition: Cache miss
+        messages: [msg14, msg15, msg16]
 ```
 
 ## Interactive Features
 
-### Click to Highlight
-- **ERD Diagrams**: Click a model to highlight all related models and relationships
-- **Flow Diagrams**: Click a node to highlight connected nodes and edges
-- **Edges**: Click an edge to highlight it and its connected nodes
+### Click to Highlight (Relational Highlighting)
+
+All diagram types support intelligent click-to-highlight with relational context:
+
+#### Sequence Diagrams
+- **Click a participant**: Highlights the participant and ALL messages to/from that participant
+- **Click a message**: Highlights the message, its arrow, AND the sender/receiver participants
+- **Click a block**: Highlights the block, all messages within it, and all involved participants
+- **Click empty space**: Clears all highlights
+
+Visual indicators:
+- **Primary highlight** (directly clicked): Bright yellow (#fbbf24), glow effect, thicker borders
+- **Secondary highlight** (related elements): Lighter yellow (#fcd34d), medium borders
+- Participants shown at **both top and bottom** of the diagram
+
+#### ERD Diagrams
+- **Click a model**: Highlights the model and all its relationships (connected models)
+- **Click a field**: Highlights the specific relationship
+
+#### Flow Diagrams
+- **Click a node**: Highlights the node and all connected edges
+- **Click an edge**: Highlights the edge and its source/target nodes
 
 ### Visual Feedback
-- Selected nodes have a ring highlight
-- Connected edges become animated and thicker
-- Connected nodes are highlighted
-- Color-coded by group
+- Selected elements have yellow glow effect
+- Related elements highlighted in lighter yellow
+- Thicker borders and enhanced labels
+- Clear visual distinction between primary and secondary highlights
 
 ## File Extensions
 
@@ -924,7 +985,8 @@ This will check your YAML file for:
 Check out the `examples/` directory for complete examples:
 - `flow-order-processing.cryml` - Order processing flow diagram
 - `simple-ecommerce.cryml` - E-commerce database schema
-- `sequence-example.cryml` - User authentication sequence diagram
+- `sequence-example.cryml` - Basic user authentication sequence diagram
+- `sequence-example-blocks.cryml` - Sequence diagram with alt and opt blocks
 - `quick-reference.cryml` - Quick reference guide
 
 ## Development

@@ -2,7 +2,7 @@
   "name": "chart-vscode-ext",
   "displayName": "Chart & Flow Diagrams",
   "description": "Visualize Prisma schemas (ERD) and flow diagrams with interactive diagrams, auto-layout, and YAML support",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "namnguyen240795",
   "license": "MIT",
   "repository": {
