@@ -1,0 +1,851 @@
+diagram_type: flow
+metadata:
+  name: Package List Creation Flow
+  description: Complete flow from package list creation to final state
+style:
+  default_color: blue
+  node_size: medium
+nodes:
+  start:
+    type: start
+    label: Start
+    group: Entry
+    position:
+      x: 400
+      y: 50
+  receive_request:
+    type: process
+    label: Receive Request
+    description: |-
+      POST /farmer/package-list
+      or
+      POST /factory/package-list
+    group: API
+    position:
+      x: 400
+      y: 150
+  check_role:
+    type: decision
+    label: Which Role?
+    group: Authentication
+    position:
+      x: 400
+      y: 260
+  validate_farm_access:
+    type: process
+    label: Validate Farm Access
+    description: |-
+      Farmer: Must own the farm
+      Factory: Farm must be
+      associated with factory
+    group: Validation
+    position:
+      x: 400
+      y: 370
+  validate_input:
+    type: decision
+    label: Input Valid?
+    group: Validation
+    position:
+      x: 400
+      y: 480
+  validate_input_note:
+    type: note
+    label: Required Fields
+    description: |-
+      farm_id, variety, date,
+      processing_step, bag_type,
+      total_weight > 0.01,
+      net_weight_per_bag > 0.01
+    group: Validation
+    position:
+      x: 620
+      y: 480
+  calculate_bags:
+    type: process
+    label: Calculate Bags
+    description: |-
+      total_bags = floor(
+      total_weight /
+      net_weight_per_bag)
+    group: Processing
+    position:
+      x: 400
+      y: 600
+  check_bags:
+    type: decision
+    label: Bags >= 1?
+    group: Validation
+    position:
+      x: 400
+      y: 710
+  start_transaction:
+    type: process
+    label: Start Transaction
+    description: |-
+      Begin database transaction
+      for atomic operations
+    group: Database
+    position:
+      x: 400
+      y: 830
+  create_package_list:
+    type: process
+    label: Create Package List
+    description: |-
+      INSERT package_list
+      (id, farm_id, variety,
+      date, processing_step,
+      bag_type, total_weight,
+      net_weight_per_bag,
+      total_bags, created_by)
+    group: Database
+    position:
+      x: 400
+      y: 950
+  generate_package_items:
+    type: process
+    label: Generate Package Items
+    description: |-
+      Loop total_bags times:
+      - Package ID: PK-{YEAR}-{RANDOM}
+      - Package number: 1, 2, 3...
+      - Status: WAITING_FOR_SCAN
+      - Create generated_id records
+    group: Processing
+    position:
+      x: 400
+      y: 1080
+  generate_package_items_note:
+    type: note
+    label: Package ID Format
+    description: |-
+      PK-{YEAR}-{RANDOM_8_CHARS}
+      Example: PK-2025-A3B7C9D2
+
+      Each package gets:
+      - Unique ID
+      - Sequential package number
+      - Initial status: WAITING_FOR_SCAN
+    group: Processing
+    position:
+      x: 650
+      y: 1080
+  commit_transaction:
+    type: process
+    label: Commit Transaction
+    description: |-
+      Commit all changes
+      to database
+    group: Database
+    position:
+      x: 400
+      y: 1220
+  return_response:
+    type: process
+    label: Return Response
+    description: |-
+      Package list with
+      all package items
+    group: Response
+    position:
+      x: 400
+      y: 1340
+  waiting_for_scan:
+    type: decision
+    label: Process Packages?
+    description: |-
+      Manual scan/
+      processing required
+    group: Processing
+    position:
+      x: 400
+      y: 1460
+  scan_package:
+    type: process
+    label: Scan Package
+    description: |-
+      PATCH /farmer/package-item/:id/status
+      or
+      PATCH /factory/package-item/:id/status
+    group: Processing
+    position:
+      x: 400
+      y: 1590
+  update_status_ready:
+    type: process
+    label: "Status: READY"
+    description: |-
+      Package scanned
+      and ready for use
+    group: Status
+    position:
+      x: 400
+      y: 1720
+  ready_decision:
+    type: decision
+    label: Next Action?
+    group: Processing
+    position:
+      x: 400
+      y: 1840
+  ship_package:
+    type: process
+    label: Ship Package
+    description: |-
+      Update status to SHIPPED
+      Package sent to destination
+    group: Shipping
+    position:
+      x: 250
+      y: 1980
+  status_shipped:
+    type: process
+    label: "Status: SHIPPED"
+    description: |-
+      Final state:
+      Package delivered
+    group: Status
+    position:
+      x: 250
+      y: 2120
+  mark_damaged:
+    type: process
+    label: Mark Damaged
+    description: |-
+      Package damaged
+      cannot be used
+    group: Processing
+    position:
+      x: 550
+      y: 1980
+  status_damaged:
+    type: process
+    label: "Status: DAMAGED"
+    description: |-
+      Final state:
+      Package unusable
+    group: Status
+    position:
+      x: 550
+      y: 2120
+  end:
+    type: end
+    label: End
+    group: Exit
+    position:
+      x: 400
+      y: 2260
+edges:
+  - from: start
+    to: receive_request
+    label: begin
+  - from: receive_request
+    to: check_role
+    label: request received
+  - from: check_role
+    to: validate_farm_access
+    label: farmer or factory
+  - from: validate_farm_access
+    to: validate_input
+    label: authorized
+  - from: validate_input
+    to: calculate_bags
+    label: valid
+  - from: validate_input
+    to: validate_input_note
+    label: note
+  - from: calculate_bags
+    to: check_bags
+    label: calculated
+  - from: check_bags
+    to: start_transaction
+    label: yes (>=1)
+  - from: start_transaction
+    to: create_package_list
+    label: started
+  - from: create_package_list
+    to: generate_package_items
+    label: created
+  - from: generate_package_items
+    to: generate_package_items_note
+    label: note
+  - from: generate_package_items
+    to: commit_transaction
+    label: generated
+  - from: commit_transaction
+    to: return_response
+    label: committed
+  - from: return_response
+    to: waiting_for_scan
+    label: created
+  - from: waiting_for_scan
+    to: scan_package
+    label: yes
+  - from: scan_package
+    to: update_status_ready
+    label: scanned
+  - from: update_status_ready
+    to: ready_decision
+    label: ready
+  - from: ready_decision
+    to: ship_package
+    label: ship
+  - from: ready_decision
+    to: mark_damaged
+    label: damaged
+  - from: ship_package
+    to: status_shipped
+    label: shipped
+  - from: mark_damaged
+    to: status_damaged
+    label: marked
+  - from: status_shipped
+    to: end
+    label: complete
+  - from: status_damaged
+    to: end
+    label: complete
+groups:
+  Entry:
+    color: green
+  API:
+    color: blue
+  Authentication:
+    color: purple
+  Validation:
+    color: orange
+  Processing:
+    color: teal
+  Database:
+    color: gray
+  Response:
+    color: blue
+  Status:
+    color: yellow
+  Shipping:
+    color: green
+  Exit:
+    color: red
+layout:
+  version: "1.0"
+  timestamp: 2026-02-11T11:05:44.381Z
+  direction: DOWN
+  nodes:
+    - id: start
+      position:
+        x: 425
+        y: 132
+      data:
+        label: Start
+        type: start
+        group: Entry
+        groupLabel: Entry
+        color: "#3b82f6"
+    - id: receive_request
+      position:
+        x: 392
+        y: 482
+      data:
+        label: Receive Request
+        description: |-
+          POST /farmer/package-list
+          or
+          POST /factory/package-list
+        type: process
+        group: API
+        groupLabel: API
+        color: "#3b82f6"
+    - id: check_role
+      position:
+        x: 397
+        y: 895
+      data:
+        label: Which Role?
+        type: decision
+        group: Authentication
+        groupLabel: Authentication
+        color: "#3b82f6"
+    - id: validate_farm_access
+      position:
+        x: 392
+        y: 1383
+      data:
+        label: Validate Farm Access
+        description: |-
+          Farmer: Must own the farm
+          Factory: Farm must be
+          associated with factory
+        type: process
+        group: Validation
+        groupLabel: Validation
+        color: "#3b82f6"
+    - id: validate_input
+      position:
+        x: 399
+        y: 1796
+      data:
+        label: Input Valid?
+        type: decision
+        group: Validation
+        groupLabel: Validation
+        color: "#3b82f6"
+    - id: validate_input_note
+      position:
+        x: 602
+        y: 2279
+      data:
+        label: Required Fields
+        description: |-
+          farm_id, variety, date,
+          processing_step, bag_type,
+          total_weight > 0.01,
+          net_weight_per_bag > 0.01
+        type: note
+        group: Validation
+        groupLabel: Validation
+        color: "#3b82f6"
+    - id: calculate_bags
+      position:
+        x: 377
+        y: 2305
+      data:
+        label: Calculate Bags
+        description: |-
+          total_bags = floor(
+          total_weight /
+          net_weight_per_bag)
+        type: process
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: check_bags
+      position:
+        x: 374
+        y: 2744
+      data:
+        label: Bags >= 1?
+        type: decision
+        group: Validation
+        groupLabel: Validation
+        color: "#3b82f6"
+    - id: start_transaction
+      position:
+        x: 360
+        y: 3216
+      data:
+        label: Start Transaction
+        description: |-
+          Begin database transaction
+          for atomic operations
+        type: process
+        group: Database
+        groupLabel: Database
+        color: "#3b82f6"
+    - id: create_package_list
+      position:
+        x: 370
+        y: 3614
+      data:
+        label: Create Package List
+        description: |-
+          INSERT package_list
+          (id, farm_id, variety,
+          date, processing_step,
+          bag_type, total_weight,
+          net_weight_per_bag,
+          total_bags, created_by)
+        type: process
+        group: Database
+        groupLabel: Database
+        color: "#3b82f6"
+    - id: generate_package_items
+      position:
+        x: 334
+        y: 4070
+      data:
+        label: Generate Package Items
+        description: |-
+          Loop total_bags times:
+          - Package ID: PK-{YEAR}-{RANDOM}
+          - Package number: 1, 2, 3...
+          - Status: WAITING_FOR_SCAN
+          - Create generated_id records
+        type: process
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: generate_package_items_note
+      position:
+        x: 132
+        y: 4511
+      data:
+        label: Package ID Format
+        description: |-
+          PK-{YEAR}-{RANDOM_8_CHARS}
+          Example: PK-2025-A3B7C9D2
+
+          Each package gets:
+          - Unique ID
+          - Sequential package number
+          - Initial status: WAITING_FOR_SCAN
+        type: note
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: commit_transaction
+      position:
+        x: 412
+        y: 4587.5
+      data:
+        label: Commit Transaction
+        description: |-
+          Commit all changes
+          to database
+        type: process
+        group: Database
+        groupLabel: Database
+        color: "#3b82f6"
+    - id: return_response
+      position:
+        x: 422
+        y: 5062
+      data:
+        label: Return Response
+        description: |-
+          Package list with
+          all package items
+        type: process
+        group: Response
+        groupLabel: Response
+        color: "#3b82f6"
+    - id: waiting_for_scan
+      position:
+        x: 352
+        y: 5460
+      data:
+        label: Process Packages?
+        description: |-
+          Manual scan/
+          processing required
+        type: decision
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: scan_package
+      position:
+        x: 368
+        y: 6060
+      data:
+        label: Scan Package
+        description: |-
+          PATCH /farmer/package-item/:id/status
+          or
+          PATCH /factory/package-item/:id/status
+        type: process
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: update_status_ready
+      position:
+        x: 424
+        y: 6473
+      data:
+        label: "Status: READY"
+        description: |-
+          Package scanned
+          and ready for use
+        type: process
+        group: Status
+        groupLabel: Status
+        color: "#3b82f6"
+    - id: ready_decision
+      position:
+        x: 405
+        y: 6871
+      data:
+        label: Next Action?
+        type: decision
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: ship_package
+      position:
+        x: -30.933357432564762
+        y: 7367.7552848467385
+      data:
+        label: Ship Package
+        description: |-
+          Update status to SHIPPED
+          Package sent to destination
+        type: process
+        group: Shipping
+        groupLabel: Shipping
+        color: "#3b82f6"
+    - id: status_shipped
+      position:
+        x: 217
+        y: 7763
+      data:
+        label: "Status: SHIPPED"
+        description: |-
+          Final state:
+          Package delivered
+        type: process
+        group: Status
+        groupLabel: Status
+        color: "#3b82f6"
+    - id: mark_damaged
+      position:
+        x: 1001.5463996542417
+        y: 7243.767466743502
+      data:
+        label: Mark Damaged
+        description: |-
+          Package damaged
+          cannot be used
+        type: process
+        group: Processing
+        groupLabel: Processing
+        color: "#3b82f6"
+    - id: status_damaged
+      position:
+        x: 450
+        y: 7763
+      data:
+        label: "Status: DAMAGED"
+        description: |-
+          Final state:
+          Package unusable
+        type: process
+        group: Status
+        groupLabel: Status
+        color: "#3b82f6"
+    - id: end
+      position:
+        x: 446
+        y: 8161
+      data:
+        label: End
+        type: end
+        group: Exit
+        groupLabel: Exit
+        color: "#3b82f6"
+  edges:
+    - id: edge-0
+      source: start
+      target: receive_request
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: begin
+      type: smoothstep
+    - id: edge-1
+      source: receive_request
+      target: check_role
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: request received
+      type: smoothstep
+    - id: edge-2
+      source: check_role
+      target: validate_farm_access
+      sourceHandle: bottom
+      targetHandle: null
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: farmer or factory
+      type: smoothstep
+    - id: edge-3
+      source: validate_farm_access
+      target: validate_input
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: authorized
+      type: smoothstep
+    - id: edge-4
+      source: validate_input
+      target: calculate_bags
+      sourceHandle: yes
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: valid
+      type: smoothstep
+    - id: edge-5
+      source: validate_input
+      target: validate_input_note
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: note
+      type: smoothstep
+    - id: edge-6
+      source: calculate_bags
+      target: check_bags
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: calculated
+      type: smoothstep
+    - id: edge-7
+      source: check_bags
+      target: start_transaction
+      sourceHandle: bottom
+      targetHandle: null
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: yes (>=1)
+      type: smoothstep
+    - id: edge-8
+      source: start_transaction
+      target: create_package_list
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: started
+      type: smoothstep
+    - id: edge-9
+      source: create_package_list
+      target: generate_package_items
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: created
+      type: smoothstep
+    - id: edge-10
+      source: generate_package_items
+      target: generate_package_items_note
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: note
+      type: smoothstep
+    - id: edge-11
+      source: generate_package_items
+      target: commit_transaction
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: generated
+      type: smoothstep
+    - id: edge-12
+      source: commit_transaction
+      target: return_response
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: committed
+      type: smoothstep
+    - id: edge-13
+      source: return_response
+      target: waiting_for_scan
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: created
+      type: smoothstep
+    - id: edge-14
+      source: waiting_for_scan
+      target: scan_package
+      sourceHandle: yes
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: yes
+      type: smoothstep
+    - id: edge-15
+      source: scan_package
+      target: update_status_ready
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: scanned
+      type: smoothstep
+    - id: edge-16
+      source: update_status_ready
+      target: ready_decision
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: ready
+      type: smoothstep
+    - id: edge-17
+      source: ready_decision
+      target: ship_package
+      sourceHandle: yes
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: ship
+      type: smoothstep
+    - id: edge-18
+      source: ready_decision
+      target: mark_damaged
+      sourceHandle: no
+      targetHandle: null
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: damaged
+      type: smoothstep
+    - id: edge-19
+      source: ship_package
+      target: status_shipped
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: shipped
+      type: smoothstep
+    - id: edge-20
+      source: mark_damaged
+      target: status_damaged
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: marked
+      type: smoothstep
+    - id: edge-21
+      source: status_shipped
+      target: end
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: complete
+      type: smoothstep
+    - id: edge-22
+      source: status_damaged
+      target: end
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: complete
+      type: smoothstep
+

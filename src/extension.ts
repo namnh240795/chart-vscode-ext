@@ -3,6 +3,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 export function activate(context: vscode.ExtensionContext) {
+  // Store context for FlowChartPanel to use
+  FlowChartPanel._context = context;
+
   // Register the tree data provider for the sidebar
   const flowChartTreeProvider = new FlowChartTreeProvider(context.extensionUri);
 
@@ -414,6 +417,8 @@ class FlowChartPanel {
   private _disposables: vscode.Disposable[] = [];
   private _item?: ChartItemData;
   private _panelId: string;
+  private _filePath: string;
+  public static _context: vscode.ExtensionContext;
 
   public static createOrShow(extensionUri: vscode.Uri, item?: ChartItemData) {
     const column = vscode.window.activeTextEditor
@@ -449,6 +454,7 @@ class FlowChartPanel {
     this._panel = panel;
     this._item = item;
     this._panelId = panelId || `default-${Date.now()}`;
+    this._filePath = item?.metadata?.filePath || '';
 
     this._panel.webview.html = this._getHtmlForWebview(this._panel.webview, extensionUri, item);
 
@@ -459,6 +465,9 @@ class FlowChartPanel {
       async (message) => {
         console.log('Extension received message:', message.command);
         switch (message.command) {
+          case 'getSavedLayout':
+            await this.getSavedLayout(message.filePath);
+            break;
           case 'requestSaveYaml':
             console.log('Showing save dialog...');
             // Show save dialog with workspace folder as default
@@ -488,11 +497,97 @@ class FlowChartPanel {
           case 'saveYaml':
             await this.saveYaml(message.data, message.filePath);
             break;
+          case 'saveLayout':
+            await this.saveLayoutToYaml(message.data);
+            break;
         }
       },
       null,
       this._disposables
     );
+  }
+
+  private async getSavedLayout(filePath: string) {
+    try {
+      if (!filePath) {
+        this._panel.webview.postMessage({ command: 'noSavedLayout' });
+        return;
+      }
+
+      // Read the YAML file
+      const fileUri = vscode.Uri.file(filePath);
+      const fileContent = await vscode.workspace.fs.readFile(fileUri);
+      const yamlText = Buffer.from(fileContent).toString('utf8');
+
+      // Parse YAML to check for layout section
+      const yaml = require('yaml');
+      const parsed = yaml.parse(yamlText);
+
+      if (parsed.layout && (parsed.layout.nodes || parsed.layout.edges)) {
+        console.log('Found saved layout in YAML file:', filePath);
+        this._panel.webview.postMessage({
+          command: 'savedLayoutLoaded',
+          layout: parsed.layout,
+        });
+      } else {
+        console.log('No saved layout found in YAML file:', filePath);
+        this._panel.webview.postMessage({
+          command: 'noSavedLayout',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading saved layout from YAML:', error);
+      this._panel.webview.postMessage({
+        command: 'noSavedLayout',
+      });
+    }
+  }
+
+  private async saveLayoutToYaml(layoutData: any) {
+    try {
+      if (!this._filePath) {
+        vscode.window.showErrorMessage('No file path available');
+        return;
+      }
+
+      const fileUri = vscode.Uri.file(this._filePath);
+
+      // Read current YAML content
+      const fileContent = await vscode.workspace.fs.readFile(fileUri);
+      const yamlText = Buffer.from(fileContent).toString('utf8');
+
+      // Parse YAML
+      const yaml = require('yaml');
+      const parsed = yaml.parse(yamlText);
+
+      // Add or update layout section
+      parsed.layout = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        direction: layoutData.direction,
+        nodes: layoutData.nodes,
+        edges: layoutData.edges,
+      };
+
+      // Convert back to YAML
+      const updatedYaml = yaml.stringify(parsed, {
+        indent: 2,
+        lineWidth: 120,
+        sortMapEntries: false,
+      });
+
+      // Write back to file
+      await vscode.workspace.fs.writeFile(
+        fileUri,
+        Buffer.from(updatedYaml + '\n', 'utf8')
+      );
+
+      vscode.window.showInformationMessage(`Layout saved to ${this._filePath}`);
+      console.log('Layout saved to YAML file:', this._filePath);
+    } catch (error) {
+      console.error('Error saving layout to YAML:', error);
+      vscode.window.showErrorMessage('Failed to save layout to file');
+    }
   }
 
   private async saveYaml(yamlContent: string, filePath: string) {
@@ -531,7 +626,8 @@ class FlowChartPanel {
     const initialData = {
       type: item?.type || 'default',
       prismaSchema: item?.type === 'prisma' ? item?.metadata?.schema : null,
-      yamlSchema: item?.type === 'yaml' ? item?.metadata?.schema : null
+      yamlSchema: item?.type === 'yaml' ? item?.metadata?.schema : null,
+      filePath: item?.metadata?.filePath || ''
     };
 
     return `<!DOCTYPE html>

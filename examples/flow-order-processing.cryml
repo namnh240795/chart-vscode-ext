@@ -1,166 +1,405 @@
-# Order Processing Flow Diagram
-# Demonstrates flowchart with note annotations
-
-diagram_type: "flow"
-
+diagram_type: flow
 metadata:
-  name: "Order Processing Flow"
-  description: "Complete order processing from customer to delivery"
+  name: Order Processing Flow
+  description: Complete order processing from customer to delivery
   version: "1.0"
-
 style:
-  default_color: "blue"
-  node_size: "medium"
-
+  default_color: blue
+  node_size: medium
 nodes:
   start:
-    type: "start"
-    label: "Order Received"
-    group: "Customer"
+    type: start
+    label: Order Received
+    group: Customer
     position:
       x: 400
       y: 50
-
   validate_payment:
-    type: "decision"
-    label: "Payment Valid?"
-    group: "Payment"
+    type: decision
+    label: Payment Valid?
+    group: Payment
     position:
       x: 400
       y: 180
-
   validate_payment_note:
-    type: "note"
-    label: "Payment Validation"
-    description: "Checks if:\n- Card number is valid\n- CVV matches\n- Expiration date is in future"
-    group: "Payment"
+    type: note
+    label: Payment Validation
+    description: |-
+      Checks if:
+      - Card number is valid
+      - CVV matches
+      - Expiration date is in future
+    group: Payment
     position:
       x: 620
       y: 180
-
   process_payment:
-    type: "process"
-    label: "Charge Credit Card"
-    description: "Process via payment gateway"
-    group: "Payment"
+    type: process
+    label: Charge Credit Card
+    description: Process via payment gateway
+    group: Payment
     position:
       x: 400
       y: 320
-
   check_inventory:
-    type: "decision"
-    label: "In Stock?"
-    description: "Verify inventory availability"
-    group: "Inventory"
+    type: decision
+    label: In Stock?
+    description: Verify inventory availability
+    group: Inventory
     position:
       x: 400
       y: 460
-
   reserve_items:
-    type: "process"
-    label: "Reserve Items"
-    description: "Set aside inventory"
-    group: "Inventory"
+    type: process
+    label: Reserve Items
+    description: Set aside inventory
+    group: Inventory
     position:
       x: 400
       y: 600
-
   ship_order:
-    type: "process"
-    label: "Ship Order"
-    description: "Package and ship via courier"
-    group: "Fulfillment"
+    type: process
+    label: Ship Order
+    description: Package and ship via courier
+    group: Fulfillment
     position:
       x: 400
       y: 740
-
   notify_success:
-    type: "process"
-    label: "Send Confirmation"
-    description: "Email order confirmation"
-    group: "Communication"
+    type: process
+    label: Send Confirmation
+    description: Email order confirmation
+    group: Communication
     position:
       x: 400
       y: 880
-
   notify_failure:
-    type: "process"
-    label: "Send Error"
-    description: "Notify customer of issue"
-    group: "Communication"
+    type: process
+    label: Send Error
+    description: Notify customer of issue
+    group: Communication
     position:
       x: 120
       y: 320
-
   end_success:
-    type: "end"
-    label: "Order Complete"
-    description: "Process finished successfully"
-    group: "Completion"
+    type: end
+    label: Order Complete
+    description: Process finished successfully
+    group: Completion
     position:
       x: 400
       y: 1000
-
   end_failure:
-    type: "end"
-    label: "Order Failed"
-    description: "Process terminated"
-    group: "Completion"
+    type: end
+    label: Order Failed
+    description: Process terminated
+    group: Completion
     position:
       x: 120
       y: 480
-
 edges:
-  - from: "start"
-    to: "validate_payment"
-    label: "new order"
-
-  - from: "validate_payment"
-    to: "process_payment"
-    label: "valid"
-
-  - from: "validate_payment"
-    to: "notify_failure"
-    label: "invalid"
-
-  - from: "process_payment"
-    to: "check_inventory"
-    label: "authorized"
-
-  - from: "check_inventory"
-    to: "reserve_items"
-    label: "yes"
-
-  - from: "check_inventory"
-    to: "notify_failure"
-    label: "no"
-
-  - from: "reserve_items"
-    to: "ship_order"
-    label: "reserved"
-
-  - from: "ship_order"
-    to: "notify_success"
-    label: "shipped"
-
-  - from: "notify_success"
-    to: "end_success"
-    label: "confirmed"
-
-  - from: "notify_failure"
-    to: "end_failure"
-    label: "notified"
-
+  - from: start
+    to: validate_payment
+    label: new order
+  - from: validate_payment
+    to: process_payment
+    label: valid
+  - from: validate_payment
+    to: notify_failure
+    label: invalid
+  - from: process_payment
+    to: check_inventory
+    label: authorized
+  - from: check_inventory
+    to: reserve_items
+    label: yes
+  - from: check_inventory
+    to: notify_failure
+    label: no
+  - from: reserve_items
+    to: ship_order
+    label: reserved
+  - from: ship_order
+    to: notify_success
+    label: shipped
+  - from: notify_success
+    to: end_success
+    label: confirmed
+  - from: notify_failure
+    to: end_failure
+    label: notified
 groups:
   Customer:
-    color: "green"
+    color: green
   Payment:
-    color: "blue"
+    color: blue
   Inventory:
-    color: "orange"
+    color: orange
   Fulfillment:
-    color: "purple"
+    color: purple
   Communication:
-    color: "gray"
+    color: gray
   Completion:
-    color: "red"
+    color: red
+layout:
+  version: "1.0"
+  timestamp: 2026-02-11T10:57:41.403Z
+  direction: DOWN
+  nodes:
+    - id: start
+      position:
+        x: 581
+        y: 132
+      data:
+        label: Order Received
+        type: start
+        group: Customer
+        groupLabel: Customer
+        color: "#3b82f6"
+        calculatedWidth: 166
+        calculatedHeight: 50
+    - id: validate_payment
+      position:
+        x: 551
+        y: 448
+      data:
+        label: Payment Valid?
+        type: decision
+        group: Payment
+        groupLabel: Payment
+        color: "#3b82f6"
+        calculatedWidth: 226
+        calculatedHeight: 226
+    - id: validate_payment_note
+      position:
+        x: 132
+        y: 132
+      data:
+        label: Payment Validation
+        description: |-
+          Checks if:
+          - Card number is valid
+          - CVV matches
+          - Expiration date is in future
+        type: note
+        group: Payment
+        groupLabel: Payment
+        color: "#3b82f6"
+        calculatedWidth: 220
+        calculatedHeight: 165
+    - id: process_payment
+      position:
+        x: 520
+        y: 940
+      data:
+        label: Charge Credit Card
+        description: Process via payment gateway
+        type: process
+        group: Payment
+        groupLabel: Payment
+        color: "#3b82f6"
+        calculatedWidth: 212
+        calculatedHeight: 84
+    - id: check_inventory
+      position:
+        x: 462
+        y: 1290
+      data:
+        label: In Stock?
+        description: Verify inventory availability
+        type: decision
+        group: Inventory
+        groupLabel: Inventory
+        color: "#3b82f6"
+        calculatedWidth: 327
+        calculatedHeight: 327
+    - id: reserve_items
+      position:
+        x: 493
+        y: 1883
+      data:
+        label: Reserve Items
+        description: Set aside inventory
+        type: process
+        group: Inventory
+        groupLabel: Inventory
+        color: "#3b82f6"
+        calculatedWidth: 156
+        calculatedHeight: 84
+    - id: ship_order
+      position:
+        x: 468
+        y: 2233
+      data:
+        label: Ship Order
+        description: Package and ship via courier
+        type: process
+        group: Fulfillment
+        groupLabel: Fulfillment
+        color: "#3b82f6"
+        calculatedWidth: 206
+        calculatedHeight: 84
+    - id: notify_success
+      position:
+        x: 479
+        y: 2583
+      data:
+        label: Send Confirmation
+        description: Email order confirmation
+        type: process
+        group: Communication
+        groupLabel: Communication
+        color: "#3b82f6"
+        calculatedWidth: 183
+        calculatedHeight: 84
+    - id: notify_failure
+      position:
+        x: 717
+        y: 1883
+      data:
+        label: Send Error
+        description: Notify customer of issue
+        type: process
+        group: Communication
+        groupLabel: Communication
+        color: "#3b82f6"
+        calculatedWidth: 183
+        calculatedHeight: 84
+    - id: end_success
+      position:
+        x: 486
+        y: 2933
+      data:
+        label: Order Complete
+        description: Process finished successfully
+        type: end
+        group: Completion
+        groupLabel: Completion
+        color: "#3b82f6"
+        calculatedWidth: 170
+        calculatedHeight: 50
+    - id: end_failure
+      position:
+        x: 740
+        y: 2233
+      data:
+        label: Order Failed
+        description: Process terminated
+        type: end
+        group: Completion
+        groupLabel: Completion
+        color: "#3b82f6"
+        calculatedWidth: 145
+        calculatedHeight: 50
+  edges:
+    - id: edge-0
+      source: start
+      target: validate_payment
+      sourceHandle: right
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: new order
+      type: smoothstep
+    - id: edge-1
+      source: validate_payment
+      target: process_payment
+      sourceHandle: yes
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: valid
+      type: smoothstep
+    - id: edge-2
+      source: validate_payment
+      target: notify_failure
+      sourceHandle: no
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: invalid
+      type: smoothstep
+    - id: edge-3
+      source: process_payment
+      target: check_inventory
+      sourceHandle: right
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: authorized
+      type: smoothstep
+    - id: edge-4
+      source: check_inventory
+      target: reserve_items
+      sourceHandle: yes
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: yes
+      type: smoothstep
+    - id: edge-5
+      source: check_inventory
+      target: notify_failure
+      sourceHandle: no
+      targetHandle: bottom
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: no
+      type: smoothstep
+    - id: edge-6
+      source: reserve_items
+      target: ship_order
+      sourceHandle: right
+      targetHandle: left
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: reserved
+      type: smoothstep
+    - id: edge-7
+      source: ship_order
+      target: notify_success
+      sourceHandle: right
+      targetHandle: left
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: shipped
+      type: smoothstep
+    - id: edge-8
+      source: notify_success
+      target: end_success
+      sourceHandle: right
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: confirmed
+      type: smoothstep
+    - id: edge-9
+      source: notify_failure
+      target: end_failure
+      sourceHandle: right
+      targetHandle: top
+      style:
+        stroke: "#64748b"
+        strokeWidth: 2.5
+        strokeOpacity: 0.9
+      label: notified
+      type: smoothstep
+

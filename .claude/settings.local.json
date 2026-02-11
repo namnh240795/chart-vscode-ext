@@ -22,7 +22,11 @@
       "Bash(open:*)",
       "Bash(vsce publish:*)",
       "Bash(npm version patch)",
-      "Bash(pnpm run compile:extension:*)"
+      "Bash(pnpm run compile:extension:*)",
+      "Bash(command:*)",
+      "Bash(git add:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)"
     ]
   }
 }

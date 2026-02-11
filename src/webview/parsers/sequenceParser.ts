@@ -34,15 +34,44 @@ export function parseSequenceYaml(content: string): ParsedSequenceDiagram {
     throw new Error('Missing required field: participants');
   }
 
+  // Coerce types to ensure proper string/number values
+  const participants: Record<string, SequenceParticipant> = {};
+  for (const [id, participant] of Object.entries(parsed.participants)) {
+    participants[id] = {
+      ...participant,
+      type: participant.type, // Keep as-is, already validated
+      label: String(participant.label),
+      description: participant.description ? String(participant.description) : undefined,
+      group: participant.group ? String(participant.group) : undefined,
+      color: participant.color, // Keep as-is, already validated
+      order: participant.order !== undefined ? Number(participant.order) : undefined,
+    };
+  }
+
+  // Coerce message types
+  const messages: SequenceMessage[] = (parsed.messages || []).map((msg) => ({
+    ...msg,
+    id: String(msg.id),
+    from: String(msg.from),
+    to: String(msg.to),
+    label: String(msg.label),
+    arrow_type: msg.arrow_type || 'solid',
+    note: msg.note ? String(msg.note) : undefined,
+    sequence_order: Number(msg.sequence_order),
+  }));
+
+  // Coerce metadata types
+  const metadata = {
+    name: String(parsed.metadata.name),
+    description: parsed.metadata.description ? String(parsed.metadata.description) : undefined,
+  };
+
   return {
-    participants: parsed.participants,
-    messages: parsed.messages || [],
+    participants,
+    messages,
     blocks: parsed.blocks,
     style: parsed.style,
-    metadata: {
-      name: parsed.metadata.name,
-      description: parsed.metadata.description,
-    },
+    metadata,
   };
 }
 

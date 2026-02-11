@@ -30,15 +30,42 @@ export function parseFlowYaml(content: string): ParsedFlowDiagram {
     throw new Error('Missing required field: nodes');
   }
 
+  // Coerce types to ensure proper string/number values
+  const nodes: Record<string, FlowNodeType> = {};
+  for (const [nodeId, node] of Object.entries(parsed.nodes)) {
+    nodes[nodeId] = {
+      ...node,
+      type: node.type, // Keep as-is, already validated
+      label: String(node.label),
+      description: node.description ? String(node.description) : undefined,
+      group: node.group ? String(node.group) : undefined,
+      position: node.position ? {
+        x: Number(node.position.x),
+        y: Number(node.position.y),
+      } : undefined,
+    };
+  }
+
+  // Coerce edge types
+  const edges: FlowEdgeType[] = (parsed.edges || []).map((edge) => ({
+    from: String(edge.from),
+    to: String(edge.to),
+    label: edge.label ? String(edge.label) : undefined,
+    condition: edge.condition ? String(edge.condition) : undefined,
+  }));
+
+  // Coerce metadata types
+  const metadata = {
+    name: String(parsed.metadata.name),
+    description: parsed.metadata.description ? String(parsed.metadata.description) : undefined,
+  };
+
   return {
-    nodes: parsed.nodes,
-    edges: parsed.edges || [],
+    nodes,
+    edges,
     groups: parsed.groups,
     style: parsed.style,
-    metadata: {
-      name: parsed.metadata.name,
-      description: parsed.metadata.description,
-    },
+    metadata,
   };
 }
 
@@ -51,6 +78,7 @@ export async function convertFlowToReactFlow(
   // Create React Flow nodes
   for (const [nodeId, flowNode] of Object.entries(parsed.nodes)) {
     const color = getGroupColor(flowNode.group, parsed.groups, parsed.style?.default_color);
+    const groupLabel = flowNode.group ? parsed.groups?.[flowNode.group]?.label || flowNode.group : undefined;
 
     nodes.push({
       id: nodeId,
@@ -61,6 +89,7 @@ export async function convertFlowToReactFlow(
         description: flowNode.description,
         type: flowNode.type,
         group: flowNode.group,
+        groupLabel: groupLabel,
         color: color,
       },
       // Let nodes auto-size based on content
@@ -78,11 +107,11 @@ export async function convertFlowToReactFlow(
     let sourceHandle: string | undefined = undefined;
     if (isDecisionSource && flowEdge.label) {
       const labelLower = flowEdge.label.toLowerCase();
-      if (labelLower === 'yes' || labelLower === 'true' || labelLower === 'valid') {
+      if (labelLower === 'yes' || labelLower === 'true' || labelLower === 'valid' || labelLower === 'ship' || labelLower === 'ok') {
         sourceHandle = 'yes';
-      } else if (labelLower === 'no' || labelLower === 'false' || labelLower === 'invalid') {
+      } else if (labelLower === 'no' || labelLower === 'false' || labelLower === 'invalid' || labelLower === 'damaged' || labelLower === 'error') {
         sourceHandle = 'no';
-      } else if (labelLower === 'bottom' || labelLower === 'continue') {
+      } else if (labelLower === 'bottom' || labelLower === 'continue' || labelLower === 'next' || labelLower === 'retry') {
         sourceHandle = 'bottom';
       }
     }
@@ -93,26 +122,37 @@ export async function convertFlowToReactFlow(
       target: flowEdge.to,
       sourceHandle: sourceHandle,
       label: flowEdge.label,
+      // Use smoothstep for clean right-angle edges that match orthogonal ELK routing
       type: 'smoothstep',
       animated: false,
       style: {
         stroke: '#64748b',
-        strokeWidth: 2,
+        strokeWidth: 2.5,
+        // Slightly transparent for a modern look
+        strokeOpacity: 0.9,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: '#64748b',
-        width: 12,
-        height: 12,
+        width: 14,
+        height: 14,
+        strokeWidth: 0,
       },
+      // Enhanced label styling
       labelStyle: {
-        fontSize: 12,
-        fontWeight: 500,
-        fill: '#f1f5f9',
+        fontSize: 13,
+        fontWeight: 600,
+        fill: '#f8fafc',
+        textShadow: '0 1px 3px rgba(0,0,0,0.5)',
       },
       labelBgStyle: {
-        fill: '#2d2d2d',
-        fillOpacity: 0.95,
+        fill: '#1e293b',
+        fillOpacity: 0.92,
+        stroke: '#334155',
+        strokeWidth: 1,
+        rx: 4,
+        ry: 4,
+        padding: '4px 8px',
       },
     });
   });

@@ -15,6 +15,7 @@ import ReactFlow, {
   applyNodeChanges,
   applyEdgeChanges,
   MarkerType,
+  ConnectionMode,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { parsePrismaSchema, convertPrismaToFlowChart, PrismaSchema } from './prismaParser';
@@ -24,6 +25,7 @@ import PrismaModelNode from './components/PrismaModelNode';
 import PrismaEnumNode from './components/PrismaEnumNode';
 import { StartNode, EndNode, ProcessNode, DecisionNode, NoteNode } from './components/FlowNodes';
 import SequenceDiagramD3 from './components/SequenceDiagramD3';
+import { layoutFlowDiagram } from './elkLayout';
 
 // Declare the vscode API
 declare global {
@@ -32,6 +34,7 @@ declare global {
       type: string;
       prismaSchema?: string | null;
       yamlSchema?: string | null;
+      filePath?: string;
     };
     vscode?: any;
   }
@@ -80,6 +83,11 @@ const App: React.FC = () => {
   const [schemaName, setSchemaName] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string>('');
+  const [isAutoLayouting, setIsAutoLayouting] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<'DOWN' | 'RIGHT'>('DOWN');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+  const [layoutSaveMessage, setLayoutSaveMessage] = useState<string>('');
   const currentSchemaRef = useRef<PrismaSchema | null>(null);
 
   // Track selected field for highlighting (ERD)
@@ -405,6 +413,7 @@ const App: React.FC = () => {
     // Handle Prisma schema
     if (initialData.prismaSchema) {
       try {
+        setIsLoading(true);
         const schema = parsePrismaSchema(initialData.prismaSchema);
         currentSchemaRef.current = schema;
         setSchemaType('prisma');
@@ -413,6 +422,7 @@ const App: React.FC = () => {
           setNodes(prismaNodes);
           setEdges(prismaEdges);
           setIsPrisma(true);
+          setIsLoading(false);
         }).catch((error) => {
           console.error('Error applying ELK layout:', error);
           // Fallback to sync layout
@@ -421,6 +431,7 @@ const App: React.FC = () => {
           setNodes(prismaNodes);
           setEdges(prismaEdges);
           setIsPrisma(true);
+          setIsLoading(false);
         });
       } catch (error) {
         console.error('Error parsing Prisma schema:', error);
@@ -438,6 +449,7 @@ const App: React.FC = () => {
 
         if (diagramType === 'erd') {
           // Handle ERD diagrams (original YAML/Prisma format)
+          setIsLoading(true);
           const schema = parseYamlSchema(initialData.yamlSchema);
           currentSchemaRef.current = schema;
           setSchemaType('yaml');
@@ -447,6 +459,7 @@ const App: React.FC = () => {
             setNodes(prismaNodes);
             setEdges(prismaEdges);
             setIsPrisma(true);
+            setIsLoading(false);
           }).catch((error) => {
             console.error('Error applying ELK layout:', error);
             const { convertPrismaToFlowChartSync } = require('./prismaParser');
@@ -454,6 +467,7 @@ const App: React.FC = () => {
             setNodes(prismaNodes);
             setEdges(prismaEdges);
             setIsPrisma(true);
+            setIsLoading(false);
           });
         } else if (diagramType === 'flow') {
           // Handle flow diagrams
@@ -463,13 +477,22 @@ const App: React.FC = () => {
           setSchemaType('yaml');
           setDiagramKind('flow');
           setSchemaName(`Flow: ${flowSchema.metadata.name}`);
+          setIsLoading(true);
+
+          // Request saved layout from extension before loading
+          vscode?.postMessage({
+            command: 'getSavedLayout',
+            filePath: initialData.filePath || '',
+          });
 
           convertFlowToReactFlow(flowSchema).then(({ nodes: flowNodes, edges: flowEdges }: { nodes: Node[]; edges: Edge[] }) => {
             setNodes(flowNodes);
             setEdges(flowEdges);
             setIsPrisma(false);
+            setIsLoading(false);
           }).catch((error: unknown) => {
             console.error('Error applying flow layout:', error);
+            setIsLoading(false);
           });
         } else if (diagramType === 'sequence') {
           // Handle sequence diagrams - use React Flow
@@ -500,7 +523,56 @@ const App: React.FC = () => {
       const message = event.data;
       console.log('Webview received message:', message.command, message);
 
-      if (message.command === 'saveAsYaml' && currentSchemaRef.current) {
+      if (message.command === 'savedLayoutLoaded') {
+        // Apply saved layout to nodes and edges
+        console.log('Applying saved layout:', message.layout);
+        const { nodes: savedNodes, edges: savedEdges, direction } = message.layout;
+
+        // Apply saved positions to nodes
+        setNodes((currentNodes) => {
+          return currentNodes.map((node) => {
+            const savedNode = savedNodes.find((n: any) => n.id === node.id);
+            if (savedNode) {
+              return {
+                ...node,
+                position: savedNode.position,
+              };
+            }
+            return node;
+          });
+        });
+
+        // Apply saved edge connection points and routing
+        setEdges((currentEdges) => {
+          return currentEdges.map((edge) => {
+            const savedEdge = savedEdges.find((e: any) => e.id === edge.id);
+            if (savedEdge) {
+              return {
+                ...edge,
+                sourceHandle: savedEdge.sourceHandle,
+                targetHandle: savedEdge.targetHandle,
+                // Restore edge routing data if available
+                ...(savedEdge.data && { data: savedEdge.data }),
+                ...(savedEdge.style && { style: savedEdge.style }),
+                ...(savedEdge.label && { label: savedEdge.label }),
+                ...(savedEdge.type && { type: savedEdge.type }),
+              };
+            }
+            return edge;
+          });
+        });
+
+        // Set layout direction from saved layout
+        if (direction) {
+          setLayoutDirection(direction);
+        }
+
+        console.log('✅ Saved layout applied');
+        setIsLoading(false);
+      } else if (message.command === 'noSavedLayout') {
+        console.log('No saved layout found, using default');
+        setIsLoading(false);
+      } else if (message.command === 'saveAsYaml' && currentSchemaRef.current) {
         setIsSaving(true);
         setSaveMessage('Converting to YAML...');
 
@@ -561,6 +633,80 @@ const App: React.FC = () => {
     vscode?.postMessage({ command: 'requestSaveYaml' });
   };
 
+  const handleAutoLayout = async () => {
+    if (isAutoLayouting) return;
+    if (diagramKind !== 'flow') {
+      console.log('Auto-layout is only available for flow diagrams');
+      return;
+    }
+
+    setIsAutoLayouting(true);
+    console.log(`🔄 Starting auto-layout (${layoutDirection === 'DOWN' ? 'Top-Down' : 'Left-Right'})...`);
+
+    try {
+      const result = await layoutFlowDiagram(nodes, edges, layoutDirection);
+      setNodes(result.nodes);
+      setEdges(result.edges);
+      console.log('✅ Auto-layout complete!');
+    } catch (error) {
+      console.error('❌ Auto-layout failed:', error);
+    } finally {
+      setIsAutoLayouting(false);
+    }
+  };
+
+  const handleSaveLayout = async () => {
+    if (isSavingLayout) return;
+
+    setIsSavingLayout(true);
+    setLayoutSaveMessage('Saving layout...');
+
+    try {
+      // Create layout data with node positions, edge connection points, and edge routing
+      const layoutData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        direction: layoutDirection,
+        nodes: nodes.map(node => ({
+          id: node.id,
+          position: node.position,
+          data: node.data,
+        })),
+        edges: edges.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          // Store edge routing information (bend points, etc.)
+          data: edge.data,
+          style: edge.style,
+          label: edge.label,
+          type: edge.type,
+        })),
+      };
+
+      // Send to extension to save to YAML file
+      vscode?.postMessage({
+        command: 'saveLayout',
+        filePath: window.vscodeInitialData?.filePath || '',
+        data: layoutData,
+      });
+
+      console.log('💾 Layout saved to YAML file:', layoutData);
+      setLayoutSaveMessage('✓ Layout saved to file!');
+
+      // Clear message after 3 seconds
+      setTimeout(() => setLayoutSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('❌ Failed to save layout:', error);
+      setLayoutSaveMessage('✗ Failed to save');
+      setTimeout(() => setLayoutSaveMessage(''), 3000);
+    } finally {
+      setIsSavingLayout(false);
+    }
+  };
+
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       setNodes((nds) => applyNodeChanges(changes, nds));
@@ -576,7 +722,40 @@ const App: React.FC = () => {
   );
 
   const onConnect = useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
+    (connection: Connection) => {
+      // Prevent creating new connections - only allow updating existing edges
+      console.log('New connection attempted (blocked):', connection);
+      // Do NOT add the new edge - this prevents creating new connections
+      // Users can only re-route existing edges via drag-and-drop
+      return;
+    },
+    []
+  );
+
+  const onEdgeUpdateStart = useCallback(() => {
+    console.log('Edge update started');
+  }, []);
+
+  const onEdgeUpdate = useCallback(
+    (oldEdge: Edge, newConnection: Connection) => {
+      console.log('Edge updated:', oldEdge, '->', newConnection);
+      setEdges((eds) => {
+        const index = eds.findIndex((e) => e.id === oldEdge.id);
+        if (index === -1) return eds;
+
+        const updatedEdge = {
+          ...eds[index],
+          source: newConnection.source || oldEdge.source,
+          target: newConnection.target || oldEdge.target,
+          sourceHandle: newConnection.sourceHandle,
+          targetHandle: newConnection.targetHandle,
+        };
+
+        const newEdges = [...eds];
+        newEdges[index] = updatedEdge;
+        return newEdges;
+      });
+    },
     [setEdges]
   );
 
@@ -640,6 +819,70 @@ const App: React.FC = () => {
                 )}
               </div>
             </>
+          ) : diagramKind === 'flow' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-gray-400">
+                {nodes.length} nodes, {edges.length} edges
+              </p>
+              <button
+                onClick={() => setLayoutDirection(layoutDirection === 'DOWN' ? 'RIGHT' : 'DOWN')}
+                className={`px-2 py-1 text-white text-xs rounded ${
+                  layoutDirection === 'DOWN'
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+                title={`Switch to ${layoutDirection === 'DOWN' ? 'Left-Right' : 'Top-Down'} layout`}
+              >
+                {layoutDirection === 'DOWN' ? '⬇️ Top-Down' : '➡️ Left-Right'}
+              </button>
+              <button
+                onClick={handleAutoLayout}
+                disabled={isAutoLayouting}
+                className={`px-2 py-1 text-white text-xs rounded ${
+                  isAutoLayouting
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {isAutoLayouting ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Layouting...
+                  </span>
+                ) : (
+                  '🔄 Auto Layout'
+                )}
+              </button>
+              <button
+                onClick={handleSaveLayout}
+                disabled={isSavingLayout}
+                className={`px-2 py-1 text-white text-xs rounded ${
+                  isSavingLayout
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {isSavingLayout ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                ) : (
+                  '💾 Save Layout'
+                )}
+              </button>
+              {layoutSaveMessage && (
+                <span className={`text-xs ${layoutSaveMessage.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>
+                  {layoutSaveMessage}
+                </span>
+              )}
+            </div>
           ) : (
             <p className="text-xs text-gray-400">
               {nodes.length} nodes, {edges.length} edges
@@ -653,6 +896,9 @@ const App: React.FC = () => {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onEdgeUpdateStart={onEdgeUpdateStart}
+        onEdgeUpdate={onEdgeUpdate}
+        connectionMode={ConnectionMode.Loose}
         onEdgeClick={(event, edge) => {
           setSelectedEdge(edge.id === selectedEdge ? null : edge.id);
           // Clear other selections
@@ -663,6 +909,12 @@ const App: React.FC = () => {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
+        fitViewOptions={{
+          padding: 0.25,
+          includeHiddenNodes: false,
+          minZoom: 0.2,
+          maxZoom: 1.2,
+        }}
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={{
@@ -675,6 +927,20 @@ const App: React.FC = () => {
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#4b5563" />
         <Controls className="!bg-[#2d2d2d] !border-gray-700 [&>button]:!bg-gray-700 [&>button]:!border-gray-600 [&>button]:!text-gray-300 [&>button:hover]:!bg-gray-600" />
       </ReactFlow>
+
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 bg-[#1e1e1e] bg-opacity-90 flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <svg className="animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-gray-300 text-lg">Calculating optimal layout...</p>
+            <p className="text-gray-500 text-sm">This may take a moment</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
